@@ -1,0 +1,94 @@
+import { useCallback, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { BabylonCanvas } from '@components/editor/BabylonCanvas';
+import { Dropdown, Loader, buttonClasses } from '@components/common';
+import type { EngineManager } from '@engine/babylon/EngineManager';
+import type { CameraMode } from '@app-types/viewer.types';
+import { ROUTES } from '@constants/routes';
+import { BRAND_NAME } from '@constants/brand';
+import { buildDemoScene } from './demoScene';
+
+const CAMERA_MODES: { value: CameraMode; label: string }[] = [
+  { value: 'orbit', label: 'Orbit' },
+  { value: 'walk', label: 'Walk' },
+  { value: 'fly', label: 'Fly' },
+];
+
+export default function ShareViewer() {
+  const { shareToken } = useParams<{ shareToken: string }>();
+  const engineManagerRef = useRef<EngineManager | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
+
+  const handleReady = useCallback((engineManager: EngineManager) => {
+    engineManagerRef.current = engineManager;
+    // In production this loads the project associated with `shareToken` via
+    // the API instead of the procedural demo room — the token is the sole
+    // access credential, so the real asset URL is never exposed to the client.
+    buildDemoScene(engineManager);
+    engineManager.optimizationManager.startAutoOptimize(60);
+    setIsReady(true);
+  }, []);
+
+  const handleCameraModeChange = useCallback((mode: CameraMode) => {
+    engineManagerRef.current?.cameraManager.setMode(mode);
+    setCameraMode(mode);
+  }, []);
+
+  return (
+    <div className="relative h-full w-full">
+      <BabylonCanvas onReady={handleReady} />
+
+      {!isReady && (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface-0">
+          <Loader size="lg" label="Loading space…" />
+        </div>
+      )}
+
+      <div className="glass-panel absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-1.5">
+        <Dropdown
+          trigger={
+            <button
+              type="button"
+              className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-white/[0.08] hover:text-text-primary"
+            >
+              {CAMERA_MODES.find((mode) => mode.value === cameraMode)?.label}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path
+                  d="M2 3.5L5 6.5L8 3.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          }
+          placement="top"
+          items={CAMERA_MODES.map((mode) => ({ value: mode.value, label: mode.label }))}
+          onSelect={(value) => handleCameraModeChange(value as CameraMode)}
+        />
+      </div>
+
+      <Link
+        to={ROUTES.home}
+        className="glass-panel absolute left-4 top-4 rounded-xl px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary"
+      >
+        Powered by{' '}
+        <span className="font-display font-semibold text-text-primary">{BRAND_NAME}</span>
+      </Link>
+
+      <Link
+        to={ROUTES.register}
+        className={buttonClasses('primary', 'sm', 'absolute right-4 top-4')}
+      >
+        Create your own
+      </Link>
+
+      {shareToken && (
+        <span className="sr-only" data-share-token={shareToken}>
+          Viewing shared project
+        </span>
+      )}
+    </div>
+  );
+}

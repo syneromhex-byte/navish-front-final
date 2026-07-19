@@ -1,0 +1,10 @@
+/* Display typeface — geometric sans, used for headlines and hero copy */
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+
+/* UI / body typeface — neutral grotesk, used everywhere else */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
