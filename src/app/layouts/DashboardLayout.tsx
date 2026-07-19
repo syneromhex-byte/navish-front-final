@@ -1,5 +1,6 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { useUserStore } from '@store/userStore';
+import { useAuth } from '@hooks/useAuth';
 import { ROUTES } from '@constants/routes';
 import { BRAND_NAME } from '@constants/brand';
 import { cn } from '@utils/cn';
@@ -13,12 +14,10 @@ const SIDEBAR_LINKS = [
 
 export function DashboardLayout() {
   const user = useUserStore((state) => state.user);
-  const clearSession = useUserStore((state) => state.clearSession);
-  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    clearSession();
-    navigate(ROUTES.home);
+    logout();
   };
 
   return (
@@ -61,7 +60,7 @@ export function DashboardLayout() {
                 {user?.name ?? 'Guest'}
               </p>
               <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                Admin
+                {user?.role ?? 'User'}
               </span>
             </div>
             <p className="truncate text-xs text-text-tertiary">{user?.email ?? ''}</p>

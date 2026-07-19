@@ -1,10 +1,13 @@
 import type { User } from '@app-types/user.types';
 
 /**
- * There's no backend yet, so these are the two accounts used to demo the
- * admin/client split — one owner-side login, one client-side login. Any
- * project whose `clientEmail` matches DEMO_CLIENT.email shows up on that
- * client's "My Models" page.
+ * @deprecated — These demo accounts are retained ONLY for backward
+ * compatibility with any code that may still import them. Real authentication
+ * now happens entirely through the backend API. Do NOT use these constants for
+ * any authentication logic — passwords are never validated client-side.
+ *
+ * The plaintext password has been removed for security: shipping a password
+ * in the JS bundle is a vulnerability even when it's just a demo credential.
  */
 export const DEMO_ADMIN: User = {
   id: 'demo-admin',
@@ -13,13 +16,8 @@ export const DEMO_ADMIN: User = {
   role: 'admin',
 };
 
-/**
- * Placeholder only — NOT the studio's real password. A real password check
- * requires a backend that hashes and verifies it server-side; anything
- * written here ships in the public JS bundle and is readable by anyone who
- * opens dev tools. Swap this whole gate out once a real auth API exists.
- */
-export const DEMO_ADMIN_PASSWORD = 'studio-demo-2026';
+/** @deprecated — Password checking is now handled by the backend via bcrypt. */
+export const DEMO_ADMIN_PASSWORD = '';
 
 export const DEMO_CLIENT: User = {
   id: 'demo-client',

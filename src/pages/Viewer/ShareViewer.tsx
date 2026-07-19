@@ -7,6 +7,9 @@ import type { CameraMode } from '@app-types/viewer.types';
 import { ROUTES } from '@constants/routes';
 import { BRAND_NAME } from '@constants/brand';
 import { buildDemoScene } from './demoScene';
+import { projectApi } from '@services/projectApi';
+import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
+import { getApiErrorMessage } from '@utils/apiError';
 
 const CAMERA_MODES: { value: CameraMode; label: string }[] = [
   { value: 'orbit', label: 'Orbit' },
@@ -18,17 +21,41 @@ export default function ShareViewer() {
   const { shareToken } = useParams<{ shareToken: string }>();
   const engineManagerRef = useRef<EngineManager | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [cameraMode, setCameraMode] = useState<CameraMode>('orbit');
 
-  const handleReady = useCallback((engineManager: EngineManager) => {
-    engineManagerRef.current = engineManager;
-    // In production this loads the project associated with `shareToken` via
-    // the API instead of the procedural demo room — the token is the sole
-    // access credential, so the real asset URL is never exposed to the client.
-    buildDemoScene(engineManager);
-    engineManager.optimizationManager.startAutoOptimize(60);
-    setIsReady(true);
-  }, []);
+  const handleReady = useCallback(
+    async (engineManager: EngineManager) => {
+      engineManagerRef.current = engineManager;
+
+      if (!shareToken) {
+        buildDemoScene(engineManager);
+        engineManager.optimizationManager.startAutoOptimize(60);
+        setIsReady(true);
+        return;
+      }
+
+      try {
+        const project = await projectApi.getByShareToken(shareToken);
+        if (project && project.modelUrl) {
+          const metadata = await engineManager.modelLoader.loadFromUrl(project.modelUrl);
+          const root = engineManager.modelLoader.getRoot(metadata.rootId);
+          if (root) {
+            const { center, radius } = autoCategorizeModel(engineManager, root);
+            engineManager.cameraManager.frameBounds(center, radius);
+            engineManager.environmentManager.refreshReflections();
+          }
+        } else {
+          buildDemoScene(engineManager);
+        }
+        engineManager.optimizationManager.startAutoOptimize(60);
+        setIsReady(true);
+      } catch (err) {
+        setError(getApiErrorMessage(err, 'Invalid or expired share link.'));
+      }
+    },
+    [shareToken]
+  );
 
   const handleCameraModeChange = useCallback((mode: CameraMode) => {
     engineManagerRef.current?.cameraManager.setMode(mode);
@@ -39,11 +66,19 @@ export default function ShareViewer() {
     <div className="relative h-full w-full">
       <BabylonCanvas onReady={handleReady} />
 
-      {!isReady && (
+      {error ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-0 p-6 text-center">
+          <p className="text-lg font-medium text-text-primary">{error}</p>
+          <p className="mt-2 text-sm text-text-secondary">Please contact your architect to request a new link.</p>
+          <Link to={ROUTES.home} className="mt-6 font-medium text-primary hover:text-primary-hover">
+            Return Home
+          </Link>
+        </div>
+      ) : !isReady ? (
         <div className="absolute inset-0 flex items-center justify-center bg-surface-0">
           <Loader size="lg" label="Loading space…" />
         </div>
-      )}
+      ) : null}
 
       <div className="glass-panel absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-2xl p-1.5">
         <Dropdown

@@ -3,12 +3,12 @@ import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input } from '@components/common';
 import { useAuth } from '@hooks/useAuth';
-import { generateOtp, sendOtpEmail } from '@services/otpService';
+import { apiClient } from '@services/apiClient';
 import { ROUTES } from '@constants/routes';
 import { BRAND_NAME } from '@constants/brand';
 import type { RegisterPayload } from '@app-types/user.types';
+import { getApiErrorMessage } from '@utils/apiError';
 
-const OTP_TTL_MS = 5 * 60 * 1000;
 const RESEND_COOLDOWN_S = 60;
 
 type Step = 'form' | 'otp';
@@ -23,19 +23,18 @@ export default function Register() {
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const [pendingPayload, setPendingPayload] = useState<RegisterPayload | null>(null);
-  const [sentOtp, setSentOtp] = useState<{ code: string; expiresAt: number } | null>(null);
   const [otpInput, setOtpInput] = useState('');
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  const dispatchOtp = async (payload: RegisterPayload) => {
+  const dispatchOtp = async (targetEmail: string, targetName: string) => {
     setIsSendingOtp(true);
     setOtpError(null);
     try {
-      const code = generateOtp();
-      await sendOtpEmail(payload.email, payload.name, code);
-      setSentOtp({ code, expiresAt: Date.now() + OTP_TTL_MS });
+      await apiClient.post('/auth/send-otp', { email: targetEmail, name: targetName });
+      setOtpSent(true);
       setResendCooldown(RESEND_COOLDOWN_S);
       const timer = window.setInterval(() => {
         setResendCooldown((s) => {
@@ -47,7 +46,7 @@ export default function Register() {
         });
       }, 1000);
     } catch (err) {
-      setOtpError(err instanceof Error ? err.message : 'Could not send the verification email.');
+      setOtpError(getApiErrorMessage(err, 'Could not send the verification email.'));
     } finally {
       setIsSendingOtp(false);
     }
@@ -69,30 +68,31 @@ export default function Register() {
     const payload: RegisterPayload = { name, email, password };
     setPendingPayload(payload);
     setStep('otp');
-    await dispatchOtp(payload);
+    await dispatchOtp(email, name);
   };
 
-  const handleVerify = (event: FormEvent) => {
+  const handleVerify = async (event: FormEvent) => {
     event.preventDefault();
     setOtpError(null);
 
-    if (!sentOtp || !pendingPayload) return;
-    if (Date.now() > sentOtp.expiresAt) {
-      setOtpError('This code has expired. Send a new one.');
-      return;
-    }
-    if (otpInput.trim() !== sentOtp.code) {
-      setOtpError('That code is incorrect.');
-      return;
-    }
+    if (!pendingPayload) return;
 
-    register(pendingPayload);
+    try {
+      // Verify OTP on the backend, then register the account
+      await apiClient.post('/auth/verify-otp', {
+        email: pendingPayload.email,
+        code: otpInput.trim(),
+      });
+      register(pendingPayload);
+    } catch (err) {
+      setOtpError(getApiErrorMessage(err, 'Invalid or expired verification code.'));
+    }
   };
 
   const handleResend = () => {
     if (resendCooldown > 0 || !pendingPayload) return;
     setOtpInput('');
-    dispatchOtp(pendingPayload);
+    dispatchOtp(pendingPayload.email, pendingPayload.name);
   };
 
   if (step === 'otp') {
@@ -109,7 +109,7 @@ export default function Register() {
           <p className="mt-2 text-sm text-text-secondary">
             {isSendingOtp
               ? `Sending a 6-digit code to ${email}…`
-              : sentOtp
+              : otpSent
                 ? `Enter the 6-digit code we sent to ${email}.`
                 : `We couldn't send a code to ${email}.`}
           </p>
@@ -122,7 +122,7 @@ export default function Register() {
               maxLength={6}
               placeholder="123456"
               required
-              disabled={!sentOtp}
+              disabled={!otpSent}
               value={otpInput}
               onChange={(event) => setOtpInput(event.target.value.replace(/\D/g, ''))}
             />
@@ -134,7 +134,7 @@ export default function Register() {
               variant="primary"
               size="lg"
               isLoading={isSubmitting}
-              disabled={!sentOtp || otpInput.length !== 6}
+              disabled={!otpSent || otpInput.length !== 6}
               className="mt-2"
             >
               Verify &amp; Create Account

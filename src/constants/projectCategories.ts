@@ -5,7 +5,10 @@ export const PROJECT_CATEGORIES: { value: ProjectCategory; label: string }[] = [
   { value: 'living-room', label: 'Living Room' },
   { value: 'bedroom', label: 'Bedroom' },
   { value: 'bathroom', label: 'Bathroom' },
+  { value: 'dining', label: 'Dining' },
+  { value: 'office', label: 'Office' },
   { value: 'outdoor', label: 'Outdoor' },
+  { value: 'custom', label: 'Custom Room' },
   { value: 'other', label: 'Other' },
 ];
 

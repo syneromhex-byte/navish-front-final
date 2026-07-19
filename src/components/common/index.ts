@@ -31,3 +31,10 @@ export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
 
 export { StatusBadge } from './StatusBadge';
+
+export { FileDropZone } from './FileDropZone';
+export type { FileDropZoneProps } from './FileDropZone';
+
+export { UploadProgressDisplay } from './UploadProgress';
+export type { UploadProgressProps } from './UploadProgress';
+

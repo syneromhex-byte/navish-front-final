@@ -18,6 +18,7 @@ interface ProjectState {
   shareWithClient: (id: string, clientEmail: string) => void;
   setModelUrl: (id: string, modelUrl: string) => void;
   setLoading: (isLoading: boolean) => void;
+  updateProject: (id: string, patch: Partial<Project>) => void;
   pushUpload: (upload: UploadProgress) => void;
   updateUpload: (fileName: string, patch: Partial<UploadProgress>) => void;
   clearUpload: (fileName: string) => void;
@@ -70,6 +71,14 @@ export const useProjectStore = create<ProjectState>()(
           ),
         })),
       setLoading: (isLoading) => set({ isLoading }),
+      updateProject: (id, patch) =>
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === id
+              ? { ...project, ...patch, updatedAt: new Date().toISOString() }
+              : project,
+          ),
+        })),
       pushUpload: (upload) => set((state) => ({ uploads: [...state.uploads, upload] })),
       updateUpload: (fileName, patch) =>
         set((state) => ({

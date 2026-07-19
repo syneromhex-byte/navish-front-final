@@ -5,11 +5,13 @@ import type { User } from '@app-types/user.types';
 interface UserState {
   user: User | null;
   accessToken: string | null;
+  refreshToken: string | null;
   isAuthenticated: boolean;
   /** True while session restoration (silent refresh on load) is in flight. */
   isInitializing: boolean;
-  setSession: (user: User, accessToken: string) => void;
+  setSession: (user: User, accessToken: string, refreshToken?: string | null) => void;
   setAccessToken: (accessToken: string) => void;
+  setRefreshToken: (refreshToken: string | null) => void;
   clearSession: () => void;
   setInitializing: (isInitializing: boolean) => void;
 }
@@ -26,11 +28,14 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       user: null,
       accessToken: null,
+      refreshToken: null,
       isAuthenticated: false,
       isInitializing: true,
-      setSession: (user, accessToken) => set({ user, accessToken, isAuthenticated: true }),
+      setSession: (user, accessToken, refreshToken = null) =>
+        set({ user, accessToken, refreshToken, isAuthenticated: true }),
       setAccessToken: (accessToken) => set({ accessToken }),
-      clearSession: () => set({ user: null, accessToken: null, isAuthenticated: false }),
+      setRefreshToken: (refreshToken) => set({ refreshToken }),
+      clearSession: () => set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
       setInitializing: (isInitializing) => set({ isInitializing }),
     }),
     {
@@ -38,6 +43,7 @@ export const useUserStore = create<UserState>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
     },

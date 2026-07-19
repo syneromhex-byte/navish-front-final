@@ -8,8 +8,9 @@ export const authApi = {
   register: (payload: RegisterPayload) =>
     apiClient.post<AuthSession>('/auth/register', payload).then((res) => res.data),
 
-  /** Exchanges the httpOnly refresh cookie for a new access token. */
-  refresh: () => apiClient.post<AuthSession>('/auth/refresh').then((res) => res.data),
+  /** Exchanges the refresh token (cookie or body) for a new access token. */
+  refresh: (refreshToken?: string | null) =>
+    apiClient.post<AuthSession>('/auth/refresh', { refreshToken }).then((res) => res.data),
 
   logout: () => apiClient.post<void>('/auth/logout').then((res) => res.data),
 

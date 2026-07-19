@@ -58,10 +58,25 @@ apiClient.interceptors.response.use(
 
     isRefreshing = true;
     try {
-      const { data } = await apiClient.post<{ accessToken: string }>('/auth/refresh');
-      useUserStore.getState().setAccessToken(data.accessToken);
-      resolvePendingRequests(data.accessToken);
-      originalRequest.headers.set('Authorization', `Bearer ${data.accessToken}`);
+      const refreshToken = useUserStore.getState().refreshToken;
+      const { data } = await apiClient.post<any>('/auth/refresh', { refreshToken });
+      const newAccessToken = data.accessToken ?? data.token;
+      
+      if (!newAccessToken) {
+        throw new Error('No access token returned from refresh endpoint');
+      }
+
+      if (data.user) {
+        useUserStore.getState().setSession(data.user, newAccessToken, data.refreshToken ?? refreshToken);
+      } else {
+        useUserStore.getState().setAccessToken(newAccessToken);
+        if (data.refreshToken) {
+          useUserStore.getState().setRefreshToken(data.refreshToken);
+        }
+      }
+
+      resolvePendingRequests(newAccessToken);
+      originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);
       return apiClient(originalRequest);
     } catch (refreshError) {
       resolvePendingRequests(null);

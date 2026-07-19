@@ -1,16 +1,15 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet } from 'react-router-dom';
 import { useUserStore } from '@store/userStore';
+import { useAuth } from '@hooks/useAuth';
 import { ROUTES } from '@constants/routes';
 import { BRAND_NAME } from '@constants/brand';
 
 export function ClientLayout() {
   const user = useUserStore((state) => state.user);
-  const clearSession = useUserStore((state) => state.clearSession);
-  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    clearSession();
-    navigate(ROUTES.home);
+    logout();
   };
 
   return (

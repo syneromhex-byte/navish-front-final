@@ -3,22 +3,42 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from '@app/routes';
 import { ErrorBoundary } from '@app/providers/ErrorBoundary';
 import { useUserStore } from '@store/userStore';
-import { authApi } from '@services/authApi';
+import { apiClient } from '@services/apiClient';
 
 function App() {
   const setSession = useUserStore((state) => state.setSession);
+  const clearSession = useUserStore((state) => state.clearSession);
   const setInitializing = useUserStore((state) => state.setInitializing);
 
   useEffect(() => {
     let isMounted = true;
 
-    authApi
-      .refresh()
-      .then((session) => {
-        if (isMounted) setSession(session.user, session.accessToken);
+    const refreshToken = useUserStore.getState().refreshToken;
+
+    // Only attempt silent refresh if we have credentials to try with
+    if (!refreshToken && !useUserStore.getState().accessToken) {
+      setInitializing(false);
+      return;
+    }
+
+    apiClient
+      .post<any>('/auth/refresh', { refreshToken })
+      .then(({ data }) => {
+        if (!isMounted) return;
+        const accessToken = data.accessToken ?? data.token;
+        if (data.user && accessToken) {
+          setSession(data.user, accessToken, data.refreshToken ?? refreshToken);
+        } else if (accessToken) {
+          setSession(
+            useUserStore.getState().user!,
+            accessToken,
+            data.refreshToken ?? refreshToken,
+          );
+        }
       })
       .catch(() => {
-        // No valid refresh cookie — user simply isn't signed in.
+        // Refresh failed — clear stale session so user sees the login page.
+        if (isMounted) clearSession();
       })
       .finally(() => {
         if (isMounted) setInitializing(false);
@@ -27,7 +47,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [setSession, setInitializing]);
+  }, [setSession, clearSession, setInitializing]);
 
   return (
     <ErrorBoundary>
