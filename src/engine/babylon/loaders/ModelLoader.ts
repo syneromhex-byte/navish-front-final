@@ -29,11 +29,13 @@ const EXTENSION_FORMAT: Record<string, ModelSourceFormat> = {
   obj: 'obj',
 };
 
-function detectFormat(fileName: string): ModelSourceFormat {
-  const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
+function detectFormat(fileName = ''): ModelSourceFormat {
+  const cleanName = (fileName || '').split('?')[0]?.split('#')[0] || '';
+  const extension = cleanName.includes('.') ? (cleanName.split('.').pop()?.toLowerCase() ?? '') : '';
   const format = EXTENSION_FORMAT[extension];
   if (!format) {
-    throw new ModelLoadError(`Unrecognized model extension: .${extension}`);
+    // Default to 'glb' if extension is unrecognized or missing (e.g. Blob URLs)
+    return 'glb';
   }
   return format;
 }
@@ -65,7 +67,19 @@ export class ModelLoader {
     this.assertBrowserLoadable(format);
 
     siblingFiles.forEach((sibling) => {
-      FilesInputStore.FilesToLoad[sibling.name.toLowerCase()] = sibling;
+      const name = sibling.name;
+      const lower = name.toLowerCase();
+      const baseName = name.split('/').pop()?.split('\\').pop() || name;
+      const baseLower = baseName.toLowerCase();
+
+      FilesInputStore.FilesToLoad[name] = sibling;
+      FilesInputStore.FilesToLoad[lower] = sibling;
+      FilesInputStore.FilesToLoad[baseName] = sibling;
+      FilesInputStore.FilesToLoad[baseLower] = sibling;
+      FilesInputStore.FilesToLoad[`./${baseName}`] = sibling;
+      FilesInputStore.FilesToLoad[`./${baseLower}`] = sibling;
+      FilesInputStore.FilesToLoad[`textures/${baseName}`] = sibling;
+      FilesInputStore.FilesToLoad[`textures/${baseLower}`] = sibling;
     });
 
     // An empty rootUrl makes the loader resolve sibling references (a
@@ -84,12 +98,18 @@ export class ModelLoader {
     url: string,
     onProgress?: (progress: ModelLoadProgress) => void,
   ): Promise<LoadedModelMetadata> {
-    const fileName = url.split('/').pop() ?? url;
-    const format = detectFormat(fileName);
+    const safeUrl = url || '';
+    const isBlob = safeUrl.startsWith('blob:');
+    const cleanUrl = safeUrl.split('?')[0]?.split('#')[0] || safeUrl;
+    const urlParts = cleanUrl.split('/');
+    const rawFileName = urlParts[urlParts.length - 1] || 'model.glb';
+    const fileName = isBlob ? 'model.glb' : rawFileName;
+    const format = isBlob ? 'glb' : detectFormat(fileName);
     this.assertBrowserLoadable(format);
 
-    const rootUrl = url.slice(0, url.length - fileName.length);
-    const result = await SceneLoader.ImportMeshAsync(null, rootUrl, fileName, this.scene, (event) =>
+    const rootUrl = isBlob ? safeUrl : safeUrl.slice(0, safeUrl.length - fileName.length);
+    const sceneFilename = isBlob ? '.glb' : fileName;
+    const result = await SceneLoader.ImportMeshAsync(null, rootUrl, sceneFilename, this.scene, (event) =>
       this.reportProgress(event, onProgress),
     );
 

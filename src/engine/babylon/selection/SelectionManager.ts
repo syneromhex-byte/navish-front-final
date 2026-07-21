@@ -1,4 +1,4 @@
-import { Color3, HighlightLayer, Mesh, PointerEventTypes } from '@babylonjs/core';
+import { Color3, Mesh, PointerEventTypes } from '@babylonjs/core';
 import type { AbstractMesh, Observer, PointerInfo, Scene } from '@babylonjs/core';
 import type { ObjectManager } from '../objects/ObjectManager';
 
@@ -6,14 +6,12 @@ const HIGHLIGHT_COLOR = Color3.FromHexString('#FF4D4D');
 
 export class SelectionManager {
   private scene: Scene;
-  private highlightLayer: HighlightLayer;
   private selectedIds: Set<string> = new Set();
   private pointerObserver: Observer<PointerInfo> | null = null;
   private onChange: ((ids: string[]) => void) | null = null;
 
   constructor(scene: Scene) {
     this.scene = scene;
-    this.highlightLayer = new HighlightLayer('selectionHighlight', scene);
   }
 
   onSelectionChange(callback: (ids: string[]) => void): void {
@@ -32,10 +30,9 @@ export class SelectionManager {
       }
 
       const id = objectManager.getIdForMesh(pickedMesh);
-      if (!id) return;
-
+      const targetMesh = objectManager.getMesh(id) || pickedMesh;
       const isAdditive = pointerInfo.event.shiftKey;
-      this.select(id, pickedMesh, { additive: isAdditive });
+      this.select(id, targetMesh, { additive: isAdditive });
     });
   }
 
@@ -45,17 +42,32 @@ export class SelectionManager {
       this.selectedIds.clear();
     }
     this.selectedIds.add(id);
-    if (mesh instanceof Mesh) {
-      this.highlightLayer.addMesh(mesh, HIGHLIGHT_COLOR);
-    }
+
+    const applyOutline = (m: AbstractMesh) => {
+      if (m instanceof Mesh) {
+        m.renderOutline = true;
+        m.outlineColor = HIGHLIGHT_COLOR;
+        m.outlineWidth = 0.04;
+      }
+    };
+
+    applyOutline(mesh);
+    mesh.getChildMeshes(false).forEach(applyOutline);
+
     this.emitChange();
   }
 
   deselect(id: string, mesh: AbstractMesh): void {
     this.selectedIds.delete(id);
-    if (mesh instanceof Mesh) {
-      this.highlightLayer.removeMesh(mesh);
-    }
+    const removeOutline = (m: AbstractMesh) => {
+      if (m instanceof Mesh) {
+        m.renderOutline = false;
+      }
+    };
+
+    removeOutline(mesh);
+    mesh.getChildMeshes(false).forEach(removeOutline);
+
     this.emitChange();
   }
 
@@ -70,7 +82,11 @@ export class SelectionManager {
   }
 
   private clearHighlights(): void {
-    this.highlightLayer.removeAllMeshes();
+    this.scene.meshes.forEach((m) => {
+      if (m instanceof Mesh) {
+        m.renderOutline = false;
+      }
+    });
   }
 
   private emitChange(): void {
@@ -79,6 +95,6 @@ export class SelectionManager {
 
   dispose(): void {
     if (this.pointerObserver) this.scene.onPointerObservable.remove(this.pointerObserver);
-    this.highlightLayer.dispose();
+    this.clearHighlights();
   }
 }

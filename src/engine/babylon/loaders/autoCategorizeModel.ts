@@ -33,6 +33,26 @@ export function autoCategorizeModel(
   meshes.forEach((mesh) => {
     mesh.computeWorldMatrix(true);
     mesh.refreshBoundingInfo({});
+
+    if (mesh.material) {
+      mesh.material.backFaceCulling = false;
+      const mat = mesh.material as any;
+      if ('twoSidedLighting' in mat) mat.twoSidedLighting = true;
+      if ('environmentIntensity' in mat && mat.environmentIntensity === 0) {
+        mat.environmentIntensity = 1.0;
+      }
+      if (mat.subMaterials && Array.isArray(mat.subMaterials)) {
+        mat.subMaterials.forEach((subMat: any) => {
+          if (subMat) {
+            subMat.backFaceCulling = false;
+            if ('twoSidedLighting' in subMat) subMat.twoSidedLighting = true;
+            if ('environmentIntensity' in subMat && subMat.environmentIntensity === 0) {
+              subMat.environmentIntensity = 1.0;
+            }
+          }
+        });
+      }
+    }
   });
 
   let minX = Infinity;

@@ -11,7 +11,8 @@ export function AdminGuard() {
   }
 
   // Only allow admin and architect roles
-  if (user.role !== 'admin' && user.role !== 'architect') {
+  const norm = user.role?.toLowerCase();
+  if (norm !== 'admin' && norm !== 'architect') {
     return <Navigate to={ROUTES.myModels} replace />;
   }
 

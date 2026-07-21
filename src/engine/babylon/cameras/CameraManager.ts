@@ -64,6 +64,8 @@ export class CameraManager {
     this.mode = mode;
     this.scene.activeCamera = this.camera;
     this.camera.attachControl(this.canvas, true);
+    this.canvas.setAttribute('tabindex', '0');
+    this.canvas.focus();
   }
 
   /** Frames the camera to comfortably view a bounding sphere. */
@@ -157,20 +159,14 @@ export class CameraManager {
     camera.checkCollisions = true;
     camera.ellipsoid = new Vector3(0.4, EYE_HEIGHT / 2, 0.4);
     camera.minZ = 0.05;
-    camera.speed = 0.25;
-    camera.angularSensibility = 3000;
+    camera.speed = 0.35;
+    camera.angularSensibility = 1000;
     camera.keysUp = [87, 38];
     camera.keysDown = [83, 40];
     camera.keysLeft = [65, 37];
     camera.keysRight = [68, 39];
     camera.setTarget(target);
 
-    // Havok (see PhysicsManager) is also active in this scene for
-    // draggable furniture, and once a physics engine is enabled Babylon's
-    // legacy mesh.checkCollisions no longer reliably catches Havok-bodied
-    // meshes — a falling camera can tunnel straight through the floor
-    // instead of stopping on it. This clamp keeps the camera grounded
-    // independent of that collision race.
     const groundLevel = EYE_HEIGHT;
     const clampObserver = this.scene.onBeforeRenderObservable.add(() => {
       if (camera.position.y < groundLevel) camera.position.y = groundLevel;
@@ -191,8 +187,8 @@ export class CameraManager {
     camera.applyGravity = false;
     camera.checkCollisions = false;
     camera.minZ = 0.05;
-    camera.speed = 0.4;
-    camera.angularSensibility = 3000;
+    camera.speed = 0.5;
+    camera.angularSensibility = 1000;
     camera.keysUp = [87, 38];
     camera.keysDown = [83, 40];
     camera.keysLeft = [65, 37];

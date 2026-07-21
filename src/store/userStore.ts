@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User } from '@app-types/user.types';
+import type { User, UserRole } from '@app-types/user.types';
 
 interface UserState {
   user: User | null;
@@ -16,13 +16,9 @@ interface UserState {
   setInitializing: (isInitializing: boolean) => void;
 }
 
-// Persisted so a visitor stays signed in across page loads instead of
-// re-authenticating every visit. This is acceptable ONLY because there's no
-// real backend yet — `accessToken` here is never a genuine bearer
-// credential (nothing privileged trusts it), just a local marker. Once a
-// real auth API exists, switch back to an in-memory access token plus an
-// httpOnly refresh-token cookie (the shape `apiClient.ts` already assumes)
-// rather than persisting a real JWT to storage.
+// The access token is persisted so App.tsx can attempt a silent refresh
+// on page load. The backend uses an httpOnly cookie for the refresh token,
+// so we do NOT persist refreshToken in localStorage.
 export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
@@ -32,7 +28,12 @@ export const useUserStore = create<UserState>()(
       isAuthenticated: false,
       isInitializing: true,
       setSession: (user, accessToken, refreshToken = null) =>
-        set({ user, accessToken, refreshToken, isAuthenticated: true }),
+        set({
+          user: user ? { ...user, role: (user.role?.toLowerCase() ?? 'client') as UserRole } : null,
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+        }),
       setAccessToken: (accessToken) => set({ accessToken }),
       setRefreshToken: (refreshToken) => set({ refreshToken }),
       clearSession: () => set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
@@ -43,7 +44,7 @@ export const useUserStore = create<UserState>()(
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
+        // refreshToken is NOT persisted — backend sets it in an httpOnly cookie
         isAuthenticated: state.isAuthenticated,
       }),
     },

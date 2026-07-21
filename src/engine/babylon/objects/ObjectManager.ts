@@ -32,8 +32,17 @@ export class ObjectManager {
     return this.registry.get(id)?.mesh;
   }
 
-  getIdForMesh(mesh: AbstractMesh): string | undefined {
-    return this.registry.get(mesh.uniqueId.toString())?.id;
+  getIdForMesh(mesh: AbstractMesh): string {
+    const existing = this.registry.get(mesh.uniqueId.toString());
+    if (existing) return existing.id;
+
+    if (mesh.parent && 'uniqueId' in mesh.parent) {
+      const parentId = this.registry.get((mesh.parent as AbstractMesh).uniqueId.toString())?.id;
+      if (parentId) return parentId;
+    }
+
+    const entry = this.register(mesh, 'other');
+    return entry.id;
   }
 
   getAll(): SceneObjectEntry[] {

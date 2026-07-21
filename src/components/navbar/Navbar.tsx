@@ -7,8 +7,9 @@ import { ROUTES } from '@constants/routes';
 import { BRAND_NAME } from '@constants/brand';
 import { cn } from '@utils/cn';
 
-function profileHref(role: 'admin' | 'architect' | 'client' | undefined): string {
-  return role === 'client' ? ROUTES.myModels : ROUTES.dashboard;
+function profileHref(role?: string): string {
+  const norm = role?.toLowerCase();
+  return norm === 'client' || norm === 'viewer' ? ROUTES.myModels : ROUTES.dashboard;
 }
 
 const NAV_LINKS = [
@@ -77,7 +78,7 @@ export function Navbar() {
             to={isAuthenticated ? profileHref(user?.role) : ROUTES.login}
             className={buttonClasses('primary', 'sm')}
           >
-            {isAuthenticated ? (user?.name.split(' ')[0] ?? 'Profile') : 'Sign In'}
+            {isAuthenticated ? (user?.firstName ?? 'Profile') : 'Sign In'}
           </NavLink>
         </div>
 
@@ -141,7 +142,7 @@ export function Navbar() {
                 className={buttonClasses('primary', 'md', 'mt-2')}
                 onClick={() => setIsMobileOpen(false)}
               >
-                {isAuthenticated ? (user?.name.split(' ')[0] ?? 'Profile') : 'Sign In'}
+                {isAuthenticated ? (user?.firstName ?? 'Profile') : 'Sign In'}
               </NavLink>
             </div>
           </motion.div>

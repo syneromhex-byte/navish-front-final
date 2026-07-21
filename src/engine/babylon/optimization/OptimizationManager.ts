@@ -1,14 +1,11 @@
 import {
   AbstractMesh,
-  HardwareScalingOptimization,
   ParticlesOptimization,
   PostProcessesOptimization,
   RenderTargetsOptimization,
   SceneInstrumentation,
   SceneOptimizer,
   SceneOptimizerOptions,
-  ShadowsOptimization,
-  TextureOptimization,
 } from '@babylonjs/core';
 import type { AbstractEngine, Mesh, Scene } from '@babylonjs/core';
 import type { EngineStats } from '@app-types/viewer.types';
@@ -39,16 +36,10 @@ export class OptimizationManager {
     this.stopAutoOptimize();
     const options = new SceneOptimizerOptions(targetFps);
     let priority = 0;
-    options.addOptimization(new ShadowsOptimization(priority));
-    priority++;
     options.addOptimization(new PostProcessesOptimization(priority));
     options.addOptimization(new ParticlesOptimization(priority));
     priority++;
-    options.addOptimization(new TextureOptimization(priority, 512));
-    priority++;
     options.addOptimization(new RenderTargetsOptimization(priority));
-    priority++;
-    options.addOptimization(new HardwareScalingOptimization(priority, 2));
 
     this.optimizer = new SceneOptimizer(this.scene, options);
     this.optimizer.start();

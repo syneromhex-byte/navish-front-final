@@ -9,15 +9,21 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true, // sends the httpOnly refresh-token cookie automatically
+  timeout: 15_000,       // abort requests that hang for more than 15 s
 });
 
+// ─── Request interceptor — attach access token ───────────────────────────────
+
 apiClient.interceptors.request.use((config) => {
+  const isRefreshEndpoint = config.url?.includes('/auth/refresh');
   const accessToken = useUserStore.getState().accessToken;
-  if (accessToken) {
+  if (accessToken && !isRefreshEndpoint) {
     config.headers.set('Authorization', `Bearer ${accessToken}`);
   }
   return config;
 });
+
+// ─── Response interceptor — transparent token refresh on 401 ─────────────────
 
 let isRefreshing = false;
 let pendingRequests: ((token: string | null) => void)[] = [];
@@ -32,10 +38,12 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
+    // Only handle 401s on non-retried requests that have a config to replay.
     if (error.response?.status !== 401 || !originalRequest || originalRequest._retried) {
       return Promise.reject(error);
     }
 
+    // If the refresh itself returned 401 the session is dead — clear it.
     if (originalRequest.url?.includes('/auth/refresh')) {
       useUserStore.getState().clearSession();
       return Promise.reject(error);
@@ -43,6 +51,7 @@ apiClient.interceptors.response.use(
 
     originalRequest._retried = true;
 
+    // Queue subsequent 401 requests until the refresh resolves.
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
         pendingRequests.push((token) => {
@@ -59,21 +68,20 @@ apiClient.interceptors.response.use(
     isRefreshing = true;
     try {
       const refreshToken = useUserStore.getState().refreshToken;
-      const { data } = await apiClient.post<any>('/auth/refresh', { refreshToken });
-      const newAccessToken = data.accessToken ?? data.token;
-      
+
+      // Backend envelope: { success, message, data: { accessToken } }
+      const { data: envelope } = await apiClient.post<{
+        success: boolean;
+        data: { accessToken: string };
+      }>('/auth/refresh', { refreshToken });
+
+      const newAccessToken = envelope.data?.accessToken;
+
       if (!newAccessToken) {
         throw new Error('No access token returned from refresh endpoint');
       }
 
-      if (data.user) {
-        useUserStore.getState().setSession(data.user, newAccessToken, data.refreshToken ?? refreshToken);
-      } else {
-        useUserStore.getState().setAccessToken(newAccessToken);
-        if (data.refreshToken) {
-          useUserStore.getState().setRefreshToken(data.refreshToken);
-        }
-      }
+      useUserStore.getState().setAccessToken(newAccessToken);
 
       resolvePendingRequests(newAccessToken);
       originalRequest.headers.set('Authorization', `Bearer ${newAccessToken}`);

@@ -1,50 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input, Loader } from '@components/common';
-import { projectApi } from '@services/projectApi';
-import { useClientStore } from '@store/clientStore';
+import { useClients } from '@hooks/useClients';
 import { useProjectStore } from '@store/projectStore';
 import { ROUTES } from '@constants/routes';
-import type { Client } from '@app-types/project.types';
+
+const getClientDisplayName = (client: any): string => {
+  if (!client) return 'Client';
+  const name = client.name || client.displayName || client.user?.displayName || client.user?.name || '';
+  if (name.trim()) return name;
+  const first = client.firstName || client.user?.firstName || '';
+  const last = client.lastName || client.user?.lastName || '';
+  const combined = `${first} ${last}`.trim();
+  if (combined) return combined;
+  return client.email || client.user?.email || 'Client';
+};
 
 export default function Clients() {
-  const contactClients = useClientStore((state) => state.clients);
+  const { clients, isLoading } = useClients();
   const projects = useProjectStore((state) => state.projects);
-  const [apiClients, setApiClients] = useState<Client[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    let isMounted = true;
-    projectApi
-      .listClients()
-      .then((data) => {
-        if (isMounted && Array.isArray(data)) setApiClients(data);
-      })
-      .catch(() => {
-        // No backend yet — contact-page inquiries captured locally still populate this list.
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const clients = [
-    ...contactClients,
-    ...apiClients.filter(
-      (apiClient) =>
-        !contactClients.some(
-          (contactClient) => contactClient.email.toLowerCase() === apiClient.email.toLowerCase(),
-        ),
-    ),
-  ];
-
-  const filteredClients = clients.filter((client) =>
-    client.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filteredClients = clients.filter((client) => {
+    const displayName = getClientDisplayName(client);
+    return displayName.toLowerCase().includes(search.toLowerCase());
+  });
 
   return (
     <div className="p-8">
@@ -68,6 +48,7 @@ export default function Clients() {
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredClients.map((client) => {
+            const displayName = getClientDisplayName(client);
             const sharedModels = projects.filter(
               (project) => project.clientEmail?.toLowerCase() === client.email.toLowerCase(),
             );
@@ -75,9 +56,9 @@ export default function Clients() {
             return (
               <div key={client.id} className="glass-panel rounded-2xl p-5">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">
-                  {client.name.slice(0, 1).toUpperCase()}
+                  {displayName.slice(0, 1).toUpperCase() || '?'}
                 </div>
-                <p className="mt-3 text-sm font-semibold text-text-primary">{client.name}</p>
+                <p className="mt-3 text-sm font-semibold text-text-primary">{displayName}</p>
                 <p className="text-xs text-text-tertiary">{client.email}</p>
                 {client.company && (
                   <p className="mt-1 text-xs text-text-secondary">{client.company}</p>

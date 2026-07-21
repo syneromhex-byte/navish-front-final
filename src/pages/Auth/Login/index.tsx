@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button, Input } from '@components/common';
 import { useAuth } from '@hooks/useAuth';
 import { ROUTES } from '@constants/routes';
@@ -8,8 +8,12 @@ import { BRAND_NAME } from '@constants/brand';
 
 export default function Login() {
   const { login, isSubmitting, error } = useAuth();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // Show a success banner when redirected here after registration
+  const justRegistered = (location.state as { registered?: boolean } | null)?.registered === true;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -28,6 +32,13 @@ export default function Login() {
           Welcome back. Enter your details to view the models shared with you.
         </p>
 
+        {/* Post-registration success alert */}
+        {justRegistered && (
+          <div className="mt-6 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+            Account created successfully. Please sign in.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4" noValidate>
           <Input
             label="Email"
@@ -40,21 +51,38 @@ export default function Login() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
           />
-          <Input
-            label="Password"
-            type="password"
-            autoComplete="current-password"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            required
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          <div className="flex flex-col gap-1">
+            <Input
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <div className="text-right">
+              <Link
+                to={ROUTES.forgotPassword}
+                className="text-xs text-text-secondary hover:text-primary"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          </div>
 
           {error && <p className="text-sm text-primary">{error}</p>}
 
-          <Button type="submit" variant="primary" size="lg" isLoading={isSubmitting} className="mt-2">
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            isLoading={isSubmitting}
+            disabled={isSubmitting}
+            className="mt-2"
+          >
             Sign In
           </Button>
         </form>

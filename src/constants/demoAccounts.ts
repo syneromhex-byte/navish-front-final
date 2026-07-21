@@ -11,6 +11,8 @@ import type { User } from '@app-types/user.types';
  */
 export const DEMO_ADMIN: User = {
   id: 'demo-admin',
+  firstName: 'Navish',
+  lastName: 'Studio',
   name: 'Navish',
   email: 'navishstudioarchitects@gmail.com',
   role: 'admin',
@@ -21,6 +23,8 @@ export const DEMO_ADMIN_PASSWORD = '';
 
 export const DEMO_CLIENT: User = {
   id: 'demo-client',
+  firstName: 'Aarav',
+  lastName: 'Mehta',
   name: 'Aarav Mehta',
   email: 'client@navisharc.com',
   role: 'client',

@@ -5,8 +5,11 @@ import { useClientStore } from '@store/clientStore';
 import { useProjectStore } from '@store/projectStore';
 import { PROJECT_CATEGORIES } from '@constants/projectCategories';
 import { modelApi } from '@services/modelApi';
+import { projectApi } from '@services/projectApi';
 import { formatBytes } from '@utils/format';
 import type { ProjectCategory, UploadProgress, ProcessingStep, ModelFormat } from '@app-types/project.types';
+
+import { useClients } from '@hooks/useClients';
 
 export interface CreateProjectWizardProps {
   isOpen: boolean;
@@ -17,7 +20,8 @@ export interface CreateProjectWizardProps {
 type StepIdx = 1 | 2 | 3 | 4;
 
 export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjectWizardProps) {
-  const clients = useClientStore((state) => state.clients);
+  const { clients } = useClients();
+  const addClientFromRegistration = useClientStore((state) => state.addClientFromRegistration);
   const addProject = useProjectStore((state) => state.addProject);
   const updateProject = useProjectStore((state) => state.updateProject);
 
@@ -275,7 +279,7 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
           compressionRatio: ratio,
           storageSaved: originalSize - optimizedSize,
           processingTime: `${secondsElapsed}s`,
-          modelUrl: `https://example.com/demo/${primaryFile.name}`,
+          modelUrl: URL.createObjectURL(primaryFile),
           format: primaryFile.name.split('.').pop()?.toLowerCase() as ModelFormat,
         });
 
@@ -301,6 +305,14 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
       ? clientEmail
       : clients.find((c) => c.id === selectedClientId)?.email ?? '';
 
+    // Register new client into client store if email provided
+    if (finalClientEmail && (selectedClientId === 'new' || !selectedClientId)) {
+      addClientFromRegistration({
+        name: finalClientName || 'Client',
+        email: finalClientEmail,
+      });
+    }
+
     const selectedRoomLabels = [
       ...DEFAULT_ROOMS.filter((r) => rooms.includes(r.id)).map((r) => r.label),
       ...customRooms.filter((r) => rooms.includes(r.id)).map((r) => r.label),
@@ -325,6 +337,16 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
       status: uploadedModelData ? 'ready' : 'draft',
       modelFormat: uploadedModelData?.format ?? 'glb',
     });
+
+    // Optionally persist to backend API if reachable
+    projectApi
+      .create({
+        name: projectName,
+        description: projectDescription || undefined,
+      })
+      .catch((err: unknown) => {
+        console.warn('Remote backend project save bypassed:', err);
+      });
 
     onSuccess?.();
     handleClose();

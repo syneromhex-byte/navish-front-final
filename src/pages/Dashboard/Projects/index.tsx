@@ -254,93 +254,14 @@ export default function DashboardProjects() {
       }, 1000);
 
     } catch (err) {
-      console.warn('Real replacement failed, running demo fallback simulation...', err);
-
-      // Simulate download/upload progress
-      let currentPercent = 0;
-      const simTimer = setInterval(() => {
-        currentPercent += 20;
-        if (currentPercent >= 100) {
-          clearInterval(simTimer);
-          simulateProcessingReplacement();
-        } else {
-          const loaded = Math.round((currentPercent / 100) * primaryFile.size);
-          const elapsed = (Date.now() - startTime) / 1000;
-          const speed = loaded / elapsed;
-          const remainingMs = ((primaryFile.size - loaded) / speed) * 1000;
-
-          setReplaceProgress((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              percent: currentPercent,
-              uploadedBytes: loaded,
-              speed,
-              remainingMs,
-            };
-          });
-        }
-      }, 250);
-
-      const simulateProcessingReplacement = async () => {
-        setReplaceProgress((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            status: 'processing',
-            percent: 100,
-            processingSteps: prev.processingSteps?.map((s, i) =>
-              i === 0 ? { ...s, status: 'active' } : s,
-            ),
-          };
-        });
-
-        const activeSteps = [...steps];
-        for (let i = 0; i < activeSteps.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 600));
-          const currentStep = activeSteps[i];
-          if (currentStep) currentStep.status = 'complete';
-          const nextStep = activeSteps[i + 1];
-          if (i < activeSteps.length - 1 && nextStep) {
-            nextStep.status = 'active';
-          }
-          setReplaceProgress((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              processingSteps: [...activeSteps],
-            };
-          });
-        }
-
-        const originalSize = primaryFile.size;
-        const optimizedSize = Math.round(originalSize * 0.42);
-        const format = primaryFile.name.split('.').pop()?.toLowerCase() as ModelFormat;
-
-        updateProjectStore(replacingProject.id, {
-          modelUrl: `https://example.com/demo/${primaryFile.name}`,
-          sizeBytes: optimizedSize,
-          originalSize,
-          optimizedSize,
-          modelFormat: format,
-          status: 'ready',
-          modelStatus: 'ready',
-        });
-
-        setReplaceProgress((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            status: 'complete',
-            percent: 100,
-          };
-        });
-
-        setTimeout(() => {
-          setReplacingProject(null);
-          setReplaceProgress(null);
-        }, 1000);
-      };
+      console.error('Model replacement failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Could not upload replacement model file.';
+      setReplaceProgress({
+        fileName: primaryFile.name,
+        percent: 0,
+        status: 'error',
+        error: errorMessage,
+      });
     }
   };
 

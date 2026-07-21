@@ -1,4 +1,4 @@
-import { Color3, MeshBuilder, ReflectionProbe, Scene } from '@babylonjs/core';
+import { Color3, MeshBuilder, Scene } from '@babylonjs/core';
 import { SkyMaterial } from '@babylonjs/materials';
 import type { Mesh, Vector3 } from '@babylonjs/core';
 
@@ -13,7 +13,6 @@ export class EnvironmentManager {
   private scene: Scene;
   private skybox: Mesh;
   private skyMaterial: SkyMaterial;
-  private reflectionProbe: ReflectionProbe;
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -21,15 +20,11 @@ export class EnvironmentManager {
     this.skybox = MeshBuilder.CreateBox('skyBox', { size: 1000 }, scene);
     this.skyMaterial = new SkyMaterial('skyMaterial', scene);
     this.skyMaterial.backFaceCulling = false;
-    this.skyMaterial.turbidity = 10;
-    this.skyMaterial.luminance = 1;
-    this.skyMaterial.inclination = 0.4;
+    this.skyMaterial.turbidity = 5;
+    this.skyMaterial.luminance = 0.8;
+    this.skyMaterial.inclination = 0.35;
     this.skybox.material = this.skyMaterial;
     this.skybox.infiniteDistance = true;
-
-    this.reflectionProbe = new ReflectionProbe('sceneReflection', 256, scene);
-    this.reflectionProbe.renderList?.push(this.skybox);
-    scene.environmentTexture = this.reflectionProbe.cubeTexture;
 
     this.setFogMode('off');
   }
@@ -60,13 +55,11 @@ export class EnvironmentManager {
     this.scene.fogColor = Color3.FromHexString(hex);
   }
 
-  /** Reflection probes render on demand — call after scene content changes to refresh IBL. */
   refreshReflections(): void {
-    this.reflectionProbe.cubeTexture.render();
+    // Environment lighting remains stable
   }
 
   dispose(): void {
-    this.reflectionProbe.dispose();
     this.skyMaterial.dispose();
     this.skybox.dispose();
   }

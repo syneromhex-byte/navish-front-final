@@ -71,10 +71,11 @@ export class EngineManager {
   async initialize(): Promise<EngineManagerHandles> {
     this.engine = await EngineFactory.CreateAsync(this.canvas, {
       antialias: true,
-      adaptToDeviceRatio: true,
+      adaptToDeviceRatio: false,
       stencil: true,
       powerPreference: 'high-performance',
     });
+    this.engine.setHardwareScalingLevel(1.0);
 
     this.sceneManager = new SceneManager(this.engine);
     const scene = this.sceneManager.getScene();

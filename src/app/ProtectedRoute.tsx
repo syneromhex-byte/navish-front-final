@@ -9,8 +9,9 @@ export interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
 }
 
-function homeForRole(role: UserRole): string {
-  return role === 'client' ? ROUTES.myModels : ROUTES.dashboard;
+function homeForRole(role?: string): string {
+  const norm = role?.toLowerCase();
+  return norm === 'client' || norm === 'viewer' ? ROUTES.myModels : ROUTES.dashboard;
 }
 
 export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps = {}) {
@@ -27,12 +28,16 @@ export function ProtectedRoute({ allowedRoles }: ProtectedRouteProps = {}) {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <Navigate to={ROUTES.login} replace state={{ from: location }} />;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    return <Navigate to={homeForRole(user.role)} replace />;
+  if (allowedRoles) {
+    const userRoleNorm = user.role?.toLowerCase();
+    const allowedNorms = allowedRoles.map((r) => r.toLowerCase());
+    if (!allowedNorms.includes(userRoleNorm)) {
+      return <Navigate to={homeForRole(user.role)} replace />;
+    }
   }
 
   return <Outlet />;

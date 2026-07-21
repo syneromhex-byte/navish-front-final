@@ -35,6 +35,7 @@ export interface Project {
   createdAt: string;
   /** Set when an admin shares this model with a client — that client sees it on their "My Models" page. */
   clientEmail?: string;
+  clientId?: string;
   sharedAt?: string;
   /** Direct URL to the real .glb/.gltf/.obj model — when set, the viewer loads this instead of showing an empty room. */
   modelUrl?: string;

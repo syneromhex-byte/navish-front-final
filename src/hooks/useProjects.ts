@@ -17,15 +17,21 @@ export function useProjects() {
     projectApi
       .list()
       .then((data) => {
-        if (!isMounted) return;
-        if (!Array.isArray(data)) {
-          setError('Could not load projects.');
-          return;
-        }
-        setProjects(data);
+        // Merge API fetched data with existing local projects to avoid wiping locally created items
+        const existingProjects = useProjectStore.getState().projects;
+        const mergedMap = new Map<string, typeof data[0]>();
+        existingProjects.forEach((p) => {
+          const cleanUrl = p.modelUrl?.includes('example.com') ? undefined : p.modelUrl;
+          mergedMap.set(p.id, { ...p, modelUrl: cleanUrl });
+        });
+        data.forEach((p) => {
+          const cleanUrl = p.modelUrl?.includes('example.com') ? undefined : p.modelUrl;
+          mergedMap.set(p.id, { ...p, modelUrl: cleanUrl });
+        });
+        setProjects(Array.from(mergedMap.values()));
       })
       .catch((err) => {
-        if (isMounted) setError(getApiErrorMessage(err, 'Could not load projects.'));
+        if (isMounted) setError(getApiErrorMessage(err, 'Could not load remote projects. Operating in local mode.'));
       })
       .finally(() => {
         if (isMounted) setLoading(false);

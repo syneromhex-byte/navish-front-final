@@ -65,8 +65,8 @@ export class LightManager {
     const mapSize = SHADOW_MAP_SIZE[quality];
     if (!this.shadowGenerator) {
       this.shadowGenerator = new ShadowGenerator(mapSize, this.sunLight as ShadowLight);
-      this.shadowGenerator.useBlurExponentialShadowMap = true;
-      this.shadowGenerator.blurKernel = 32;
+      this.shadowGenerator.usePoissonSampling = true;
+      this.shadowGenerator.bias = 0.0005;
     } else {
       this.shadowGenerator.getShadowMap()?.resize(mapSize);
     }

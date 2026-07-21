@@ -9,25 +9,39 @@ import { ViewerLayout } from '@app/layouts/ViewerLayout';
 import { ProtectedRoute } from '@app/ProtectedRoute';
 import { Loader } from '@components/common';
 
+// ─── Public pages ─────────────────────────────────────────────────────────────
+
 const Home = lazy(() => import('@pages/Home'));
 const Portfolio = lazy(() => import('@pages/Portfolio'));
 const Projects = lazy(() => import('@pages/Projects'));
 const Services = lazy(() => import('@pages/Services'));
 const Contact = lazy(() => import('@pages/Contact'));
 
+// ─── Auth pages ───────────────────────────────────────────────────────────────
+
 const Login = lazy(() => import('@pages/Auth/Login'));
 const Register = lazy(() => import('@pages/Auth/Register'));
+const ForgotPassword = lazy(() => import('@pages/Auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('@pages/Auth/ResetPassword'));
+
+// ─── Dashboard pages (admin / architect) ─────────────────────────────────────
 
 const DashboardOverview = lazy(() => import('@pages/Dashboard/Overview'));
 const DashboardProjects = lazy(() => import('@pages/Dashboard/Projects'));
 const DashboardClients = lazy(() => import('@pages/Dashboard/Clients'));
 const DashboardSettings = lazy(() => import('@pages/Dashboard/Settings'));
 
+// ─── Client pages ─────────────────────────────────────────────────────────────
+
 const MyModels = lazy(() => import('@pages/Client/MyModels'));
+
+// ─── Viewer pages ─────────────────────────────────────────────────────────────
 
 const ViewerPage = lazy(() => import('@pages/Viewer/ViewerPage'));
 const VRPage = lazy(() => import('@pages/Viewer/VRPage'));
 const ShareViewer = lazy(() => import('@pages/Viewer/ShareViewer'));
+
+// ─── Fallback ─────────────────────────────────────────────────────────────────
 
 const NotFound = lazy(() => import('@pages/NotFound'));
 
@@ -46,6 +60,7 @@ function withSuspense(element: ReactNode) {
 }
 
 export const router = createBrowserRouter([
+  // ─── Marketing / public ───────────────────────────────────────────────────
   {
     element: <PublicLayout />,
     children: [
@@ -56,8 +71,14 @@ export const router = createBrowserRouter([
       { path: '/contact', element: withSuspense(<Contact />) },
     ],
   },
+
+  // ─── Auth pages (guest-accessible) ───────────────────────────────────────
   { path: '/login', element: withSuspense(<Login />) },
   { path: '/register', element: withSuspense(<Register />) },
+  { path: '/forgot-password', element: withSuspense(<ForgotPassword />) },
+  { path: '/reset-password', element: withSuspense(<ResetPassword />) },
+
+  // ─── Admin / architect dashboard ─────────────────────────────────────────
   {
     element: <ProtectedRoute allowedRoles={['admin', 'architect']} />,
     children: [
@@ -73,8 +94,10 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
+  // ─── Client portal ────────────────────────────────────────────────────────
   {
-    element: <ProtectedRoute allowedRoles={['client']} />,
+    element: <ProtectedRoute allowedRoles={['client', 'viewer']} />,
     children: [
       {
         element: <ClientLayout />,
@@ -82,6 +105,8 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
+  // ─── Viewer (any authenticated user) ─────────────────────────────────────
   {
     element: <ProtectedRoute />,
     children: [
@@ -94,9 +119,13 @@ export const router = createBrowserRouter([
       },
     ],
   },
+
+  // ─── Public share link (no auth required) ────────────────────────────────
   {
     element: <ViewerLayout />,
     children: [{ path: '/share/:shareToken', element: withSuspense(<ShareViewer />) }],
   },
+
+  // ─── Catch-all ────────────────────────────────────────────────────────────
   { path: '*', element: withSuspense(<NotFound />) },
 ]);

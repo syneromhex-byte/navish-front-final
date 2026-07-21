@@ -13,6 +13,7 @@ const SIDEBAR_LINKS = [
 ];
 
 export function DashboardLayout() {
+  console.log("DashboardLayout Rendered");
   const user = useUserStore((state) => state.user);
   const { logout } = useAuth();
 
@@ -52,12 +53,12 @@ export function DashboardLayout() {
 
         <div className="mt-auto flex items-center gap-3 rounded-lg border border-border-subtle px-3 py-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-            {user?.name.slice(0, 1).toUpperCase() ?? '?'}
+            {(user?.firstName ?? user?.name ?? '?').slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <p className="truncate text-sm font-medium text-text-primary">
-                {user?.name ?? 'Guest'}
+                {user?.name ?? user?.firstName ?? 'Guest'}
               </p>
               <span className="shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
                 {user?.role ?? 'User'}

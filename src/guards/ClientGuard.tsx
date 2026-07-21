@@ -10,8 +10,9 @@ export function ClientGuard() {
     return <Navigate to={ROUTES.login} replace />;
   }
 
-  // Only allow client role
-  if (user.role !== 'client') {
+  // Only allow client or viewer role
+  const norm = user.role?.toLowerCase();
+  if (norm !== 'client' && norm !== 'viewer') {
     return <Navigate to={ROUTES.dashboard} replace />;
   }
 

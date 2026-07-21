@@ -4,15 +4,26 @@ import { StatCard } from '@components/cards/StatCard';
 import { StatusBadge, Loader, Button } from '@components/common';
 import { useProjects } from '@hooks/useProjects';
 import { useUserStore } from '@store/userStore';
-import { useClientStore } from '@store/clientStore';
 import { ROUTES } from '@constants/routes';
 import { formatRelativeDate, formatBytes } from '@utils/format';
+import { useClients } from '@hooks/useClients';
 import { CreateProjectWizard } from '../Projects/CreateProjectWizard';
 
+const getClientDisplayName = (client: any): string => {
+  if (!client) return 'Client';
+  const name = client.name || client.displayName || client.user?.displayName || client.user?.name || '';
+  if (name.trim()) return name;
+  const first = client.firstName || client.user?.firstName || '';
+  const last = client.lastName || client.user?.lastName || '';
+  const combined = `${first} ${last}`.trim();
+  if (combined) return combined;
+  return client.email || client.user?.email || 'Client';
+};
+
 export default function Overview() {
-  const { projects, isLoading } = useProjects();
+  const { projects, isLoading, error } = useProjects();
+  const { clients } = useClients();
   const user = useUserStore((state) => state.user);
-  const clients = useClientStore((state) => state.clients);
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
@@ -23,10 +34,17 @@ export default function Overview() {
 
   return (
     <div className="p-8">
+      {error && (
+        <div className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-xs text-amber-300 flex items-center justify-between">
+          <span>{error}</span>
+          <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Local Persistence Active</span>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle pb-6">
         <div>
           <h1 className="font-display text-2xl font-semibold text-text-primary">
-            Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+            Welcome back{user?.firstName || user?.name ? `, ${user.firstName || user.name?.split(' ')[0]}` : ''}
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
             Here&apos;s a live review of your premium visualization space.
@@ -77,29 +95,34 @@ export default function Overview() {
           ) : (
             <div className="mt-6 flex flex-col divide-y divide-border-subtle border-t border-border-subtle">
               {projects.slice(0, 5).map((project) => (
-                <div key={project.id} className="flex items-center justify-between py-4 hover:bg-white/[0.01] transition-all px-2 rounded-lg">
-                  <div className="flex items-center gap-3">
+                <div key={project.id} className="flex items-center justify-between py-4 hover:bg-white/[0.02] transition-all px-3 rounded-xl group">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     {project.thumbnailUrl ? (
                       <img
                         src={project.thumbnailUrl}
                         alt={project.name}
-                        className="h-10 w-14 rounded-lg object-cover bg-black border border-border-subtle"
+                        className="h-10 w-14 rounded-lg object-cover bg-black border border-border-subtle shrink-0"
                       />
                     ) : (
-                      <div className="h-10 w-14 rounded-lg bg-white/[0.04] border border-dashed border-border-subtle flex items-center justify-center text-[10px] text-text-tertiary">
+                      <div className="h-10 w-14 rounded-lg bg-white/[0.04] border border-dashed border-border-subtle flex items-center justify-center text-[10px] text-text-tertiary shrink-0">
                         No Preview
                       </div>
                     )}
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{project.name}</p>
-                      <p className="text-xs text-text-tertiary">{project.clientName || 'Not Shared'}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-text-primary truncate">{project.name}</p>
+                      <p className="text-xs text-text-tertiary truncate">{project.clientName || 'Not Shared'}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-xs text-text-tertiary">
+                  <div className="flex items-center gap-4 shrink-0">
+                    <span className="text-xs text-text-tertiary hidden sm:inline">
                       {formatRelativeDate(project.updatedAt)}
                     </span>
                     <StatusBadge status={project.modelStatus || project.status} />
+                    <Link to={ROUTES.viewer(project.id)}>
+                      <Button variant="ghost" size="sm" className="opacity-90 group-hover:opacity-100">
+                        View 3D
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -120,17 +143,20 @@ export default function Overview() {
             {clients.length === 0 ? (
               <p className="text-center py-6 text-xs text-text-tertiary">No registered clients.</p>
             ) : (
-              clients.slice(0, 5).map((client) => (
-                <div key={client.id} className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                    {client.name.slice(0, 1).toUpperCase()}
+              clients.slice(0, 5).map((client) => {
+                const displayName = getClientDisplayName(client);
+                return (
+                  <div key={client.id} className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      {displayName.slice(0, 1).toUpperCase() || '?'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-text-primary">{displayName}</p>
+                      <p className="truncate text-[10px] text-text-tertiary">{client.email}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-text-primary">{client.name}</p>
-                    <p className="truncate text-[10px] text-text-tertiary">{client.email}</p>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

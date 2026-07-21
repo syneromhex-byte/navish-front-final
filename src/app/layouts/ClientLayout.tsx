@@ -24,11 +24,11 @@ export function ClientLayout() {
 
         <div className="flex items-center gap-3">
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium text-text-primary">{user?.name ?? 'Guest'}</p>
+            <p className="text-sm font-medium text-text-primary">{user?.name ?? user?.firstName ?? 'Guest'}</p>
             <p className="text-xs text-text-tertiary">{user?.email ?? ''}</p>
           </div>
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
-            {user?.name.slice(0, 1).toUpperCase() ?? '?'}
+            {(user?.firstName ?? user?.name ?? '?').slice(0, 1).toUpperCase()}
           </div>
           <button
             type="button"

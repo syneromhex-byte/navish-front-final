@@ -14,15 +14,15 @@ export class SceneManager {
   }
 
   private applyDefaults(): void {
-    this.scene.clearColor = new Color4(0, 0, 0, 1);
-    this.scene.ambientColor = new Color3(0.15, 0.15, 0.15);
+    this.scene.clearColor = new Color4(0.04, 0.05, 0.07, 1);
+    this.scene.ambientColor = new Color3(0.55, 0.55, 0.55);
 
     // ACES-style filmic tonemapping for the cinematic, architectural-render look.
     this.scene.imageProcessingConfiguration.toneMappingEnabled = true;
     this.scene.imageProcessingConfiguration.toneMappingType =
       ImageProcessingConfiguration.TONEMAPPING_ACES;
-    this.scene.imageProcessingConfiguration.exposure = 1.0;
-    this.scene.imageProcessingConfiguration.contrast = 1.1;
+    this.scene.imageProcessingConfiguration.exposure = 1.25;
+    this.scene.imageProcessingConfiguration.contrast = 1.15;
 
     this.scene.skipPointerMovePicking = false;
     this.scene.autoClear = true;

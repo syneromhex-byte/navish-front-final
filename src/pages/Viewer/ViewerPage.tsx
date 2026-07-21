@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { PBRMaterial } from '@babylonjs/core';
 import { BabylonCanvas } from '@components/editor/BabylonCanvas';
 import { Toolbar } from '@components/editor/Toolbar/Toolbar';
 import { ObjectPanel } from '@components/editor/ObjectPanel/ObjectPanel';
@@ -38,9 +37,6 @@ export default function ViewerPage() {
   const [materialProperties, setMaterialProperties] = useState<MaterialProperties | null>(null);
   const [hasTexture, setHasTexture] = useState(false);
   const [transformValues, setTransformValues] = useState<TransformValues | null>(null);
-  const [lastTransformSelectedId, setLastTransformSelectedId] = useState<string | undefined>(
-    undefined,
-  );
 
   const [sunAzimuth, setSunAzimuth] = useState(225);
   const [sunElevation, setSunElevation] = useState(50);
@@ -56,9 +52,6 @@ export default function ViewerPage() {
   const [gyroSensitivity, setGyroSensitivity] = useState(1);
   const [geoWalkStatus, setGeoWalkStatus] = useState<GeoWalkStatus | null>(null);
   const [isCameraDropdownOpen, setIsCameraDropdownOpen] = useState(false);
-  const [lastCameraModeForGyro, setLastCameraModeForGyro] = useState<typeof cameraMode | undefined>(
-    undefined,
-  );
 
   const toolMode = useEditorStore((state) => state.toolMode);
   const setToolMode = useEditorStore((state) => state.setToolMode);
@@ -69,19 +62,17 @@ export default function ViewerPage() {
 
   const selectedId = selectedIds[0];
 
-  if (selectedId !== lastTransformSelectedId) {
-    setLastTransformSelectedId(selectedId);
+  useEffect(() => {
     if (!selectedId) setTransformValues(null);
-  }
+  }, [selectedId]);
 
   // Motion look only makes sense for cameras you can freely rotate — turn it
   // off automatically if the user switches to an orbit-style mode.
-  if (cameraMode !== lastCameraModeForGyro) {
-    setLastCameraModeForGyro(cameraMode);
+  useEffect(() => {
     if ((cameraMode === 'orbit' || cameraMode === 'cinematic') && isGyroActive) {
       setIsGyroActive(false);
     }
-  }
+  }, [cameraMode, isGyroActive]);
 
   // GPS walk is only meaningful for freely-moving cameras too, but disabling
   // it is an imperative call into the engine (not a setState), so it belongs
@@ -152,9 +143,8 @@ export default function ViewerPage() {
       return;
     }
     setMaterialProperties(engineManager.materialManager.getProperties(mesh));
-    setHasTexture(
-      mesh.material instanceof PBRMaterial ? mesh.material.albedoTexture !== null : false,
-    );
+    const mat = mesh.material as any;
+    setHasTexture(mat ? !!(mat.albedoTexture || mat.diffuseTexture) : false);
   }, [selectedId]);
 
   const handleMaterialChange = useCallback(
