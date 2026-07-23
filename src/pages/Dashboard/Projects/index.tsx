@@ -1,15 +1,15 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Button, Dropdown, Input, Loader, Modal, StatusBadge, FileDropZone, UploadProgressDisplay } from '@components/common';
 import { useProjects } from '@hooks/useProjects';
 import { useProjectStore } from '@store/projectStore';
-import { useLocalModelStore } from '@store/localModelStore';
 import { useUserStore } from '@store/userStore';
 import { projectApi } from '@services/projectApi';
 import { modelApi } from '@services/modelApi';
 import { ROUTES } from '@constants/routes';
 import { formatBytes, formatRelativeDate } from '@utils/format';
+import { resolveServerUrl } from '@utils/resolveServerUrl';
 import { pickPrimaryModelFile } from '@utils/pickPrimaryModelFile';
 import { PROJECT_CATEGORIES, categoryLabel } from '@constants/projectCategories';
 import type { Project, ProjectCategory, ProjectStatus, UploadProgress, ProcessingStep, ModelFormat } from '@app-types/project.types';
@@ -29,14 +29,12 @@ const CATEGORY_FILTERS: { value: ProjectCategory | 'all'; label: string }[] = [
 ];
 
 export default function DashboardProjects() {
-  const navigate = useNavigate();
   const { projects, isLoading } = useProjects();
   const currentUser = useUserStore((state) => state.user);
   const removeProject = useProjectStore((state) => state.removeProject);
   const shareWithClient = useProjectStore((state) => state.shareWithClient);
   const setModelUrl = useProjectStore((state) => state.setModelUrl);
   const updateProjectStore = useProjectStore((state) => state.updateProject);
-  const setPendingLocalModel = useLocalModelStore((state) => state.setPending);
 
   // Tab View state: 'projects' | 'models'
   const [activeTab, setActiveTab] = useState<'projects' | 'models'>('projects');
@@ -79,7 +77,11 @@ export default function DashboardProjects() {
     if (!pendingDelete) return;
     setIsDeleting(true);
     try {
-      await projectApi.remove(pendingDelete.id);
+      try {
+        await projectApi.remove(pendingDelete.id);
+      } catch (err) {
+        console.warn('Remote project deletion failed, proceeding with local deletion:', err);
+      }
       removeProject(pendingDelete.id);
       setPendingDelete(null);
     } finally {
@@ -105,29 +107,89 @@ export default function DashboardProjects() {
     setPickError(null);
   };
 
-  const handleLinkModel = () => {
+  const handleLinkModel = async () => {
     if (!linkingProject || !modelUrlInput.trim()) return;
-    setModelUrl(linkingProject.id, modelUrlInput.trim());
+    const targetProject = linkingProject;
+    const url = modelUrlInput.trim();
+    setModelUrl(targetProject.id, url);
     setLinkingProject(null);
     setModelUrlInput('');
+    try {
+      await projectApi.update(targetProject.id, { modelUrl: url, status: 'ready' });
+    } catch (err) {
+      console.error('Failed to update project modelUrl on backend:', err);
+    }
   };
 
-  const handlePickLocalFile = (event: ChangeEvent<HTMLInputElement>) => {
+  const handlePickLocalFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = '';
     if (files.length === 0 || !linkingProject) return;
 
     const primary = pickPrimaryModelFile(files);
     if (!primary) {
-      setPickError('Select a .glb, .gltf, or .obj file.');
+      setPickError('Select a .glb, .gltf, .obj, or .fbx file.');
       return;
     }
     setPickError(null);
-    setPendingLocalModel(linkingProject.id, primary, files);
-    const projectId = linkingProject.id;
+
+    const targetProject = linkingProject;
     setLinkingProject(null);
     setModelUrlInput('');
-    navigate(ROUTES.viewer(projectId));
+
+    setReplaceProgress({
+      fileName: primary.name,
+      percent: 0,
+      status: 'uploading',
+      uploadedBytes: 0,
+      totalBytes: primary.size,
+      speed: 0,
+      remainingMs: 0,
+    });
+
+    try {
+      const response = await modelApi.upload(primary, (progressEvent) => {
+        const total = progressEvent.total ?? primary.size;
+        const loaded = progressEvent.loaded;
+        const percent = Math.min(100, Math.round((loaded / total) * 100));
+        setReplaceProgress((prev) => (prev ? { ...prev, percent, uploadedBytes: loaded, totalBytes: total } : null));
+      });
+
+      const originalSize = response.originalSize || primary.size;
+      const isFormat = primary.name.split('.').pop()?.toLowerCase() as ModelFormat;
+
+      const updatedFields: Partial<Project> = {
+        modelUrl: response.modelUrl,
+        sizeBytes: originalSize,
+        originalSize,
+        optimizedSize: originalSize,
+        modelFormat: isFormat,
+        thumbnailUrl: response.thumbnailUrl ?? targetProject.thumbnailUrl,
+        status: 'ready',
+        modelStatus: 'ready',
+      };
+
+      updateProjectStore(targetProject.id, updatedFields);
+      await projectApi.update(targetProject.id, updatedFields);
+
+      setReplaceProgress({
+        fileName: primary.name,
+        percent: 100,
+        status: 'complete',
+      });
+
+      setTimeout(() => {
+        setReplaceProgress(null);
+      }, 1200);
+    } catch (err: any) {
+      console.error('File upload failed:', err);
+      setReplaceProgress({
+        fileName: primary.name,
+        percent: 0,
+        status: 'error',
+        error: err?.message || 'Could not upload model file to backend server.',
+      });
+    }
   };
 
   // Replace Model flow
@@ -223,21 +285,29 @@ export default function DashboardProjects() {
         });
       }
 
-      const originalSize = primaryFile.size;
-      const optimizedSize = response.optimizedSize ?? Math.round(originalSize * 0.42);
+      const originalSize = response.originalSize || primaryFile.size;
       const isFormat = primaryFile.name.split('.').pop()?.toLowerCase() as ModelFormat;
 
       // Update project store
-      updateProjectStore(replacingProject.id, {
+      const updatedFields: Partial<Project> = {
         modelUrl: response.modelUrl,
-        sizeBytes: optimizedSize,
+        sizeBytes: originalSize,
         originalSize,
-        optimizedSize,
+        optimizedSize: undefined,
         modelFormat: isFormat,
         thumbnailUrl: response.thumbnailUrl ?? replacingProject.thumbnailUrl,
         status: 'ready',
         modelStatus: 'ready',
-      });
+      };
+
+      updateProjectStore(replacingProject.id, updatedFields);
+
+      // Persist to backend DB
+      try {
+        await projectApi.update(replacingProject.id, updatedFields);
+      } catch (err) {
+        console.error('Failed to persist project model URL update to backend:', err);
+      }
 
       setReplaceProgress((prev) => {
         if (!prev) return null;
@@ -375,7 +445,7 @@ export default function DashboardProjects() {
                     <div className="flex items-center gap-3">
                       {project.thumbnailUrl ? (
                         <img
-                          src={project.thumbnailUrl}
+                          src={resolveServerUrl(project.thumbnailUrl)}
                           alt={project.name}
                           className="h-10 w-14 rounded-lg object-cover bg-black border border-border-subtle"
                         />
@@ -418,7 +488,7 @@ export default function DashboardProjects() {
                         </Button>
                       </Link>
                       <Button variant="secondary" size="sm" onClick={() => openLinkModelModal(project)}>
-                        {project.modelUrl ? 'Link URL' : 'Link model'}
+                        {project.modelUrl ? 'Replace model' : 'Attach model'}
                       </Button>
                       <Button variant="secondary" size="sm" onClick={() => openShareModal(project)}>
                         Share
@@ -461,7 +531,7 @@ export default function DashboardProjects() {
                       <td className="py-3.5">
                         {project.thumbnailUrl ? (
                           <img
-                            src={project.thumbnailUrl}
+                            src={resolveServerUrl(project.thumbnailUrl)}
                             alt={project.name}
                             className="h-10 w-14 rounded-lg object-cover bg-black border border-border-subtle"
                           />

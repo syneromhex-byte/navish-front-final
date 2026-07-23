@@ -21,11 +21,11 @@ export function useProjects() {
         const existingProjects = useProjectStore.getState().projects;
         const mergedMap = new Map<string, typeof data[0]>();
         existingProjects.forEach((p) => {
-          const cleanUrl = p.modelUrl?.includes('example.com') ? undefined : p.modelUrl;
+          const cleanUrl = p.modelUrl?.includes('example.com') || p.modelUrl?.startsWith('blob:') ? undefined : p.modelUrl;
           mergedMap.set(p.id, { ...p, modelUrl: cleanUrl });
         });
         data.forEach((p) => {
-          const cleanUrl = p.modelUrl?.includes('example.com') ? undefined : p.modelUrl;
+          const cleanUrl = p.modelUrl?.includes('example.com') || p.modelUrl?.startsWith('blob:') ? undefined : p.modelUrl;
           mergedMap.set(p.id, { ...p, modelUrl: cleanUrl });
         });
         setProjects(Array.from(mergedMap.values()));

@@ -33,23 +33,32 @@ export function Modal({
 }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
 
     document.addEventListener('keydown', handleKeyDown);
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    dialogRef.current?.focus();
+    
+    // Prevent stealing focus if an input inside the modal is already focused
+    if (!dialogRef.current?.contains(document.activeElement)) {
+      dialogRef.current?.focus();
+    }
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return createPortal(
     <AnimatePresence>
@@ -79,6 +88,7 @@ export function Modal({
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={cn(
               'glass-panel relative w-full rounded-2xl bg-surface-2/90 p-6 shadow-2xl outline-none',
+              'max-h-[90vh] overflow-y-auto',
               SIZE_CLASSES[size],
               className,
             )}

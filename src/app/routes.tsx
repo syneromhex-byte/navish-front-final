@@ -28,6 +28,7 @@ const ResetPassword = lazy(() => import('@pages/Auth/ResetPassword'));
 
 const DashboardOverview = lazy(() => import('@pages/Dashboard/Overview'));
 const DashboardProjects = lazy(() => import('@pages/Dashboard/Projects'));
+const DashboardPortfolio = lazy(() => import('@pages/Dashboard/Portfolio'));
 const DashboardClients = lazy(() => import('@pages/Dashboard/Clients'));
 const DashboardSettings = lazy(() => import('@pages/Dashboard/Settings'));
 
@@ -88,6 +89,7 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: withSuspense(<DashboardOverview />) },
           { path: 'projects', element: withSuspense(<DashboardProjects />) },
+          { path: 'portfolio', element: withSuspense(<DashboardPortfolio />) },
           { path: 'clients', element: withSuspense(<DashboardClients />) },
           { path: 'settings', element: withSuspense(<DashboardSettings />) },
         ],

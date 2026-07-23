@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { BRAND_CONTACT, BRAND_NAME, BRAND_TAGLINE } from '@constants/brand';
 import { ROUTES } from '@constants/routes';
+import { NavishLogo } from '@components/common';
 
 const FOOTER_LINKS: { heading: string; links: { label: string; to: string }[] }[] = [
   {
@@ -30,7 +31,10 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-6 py-16">
         <div className="grid grid-cols-1 gap-12 md:grid-cols-[1.5fr_1fr_1fr]">
           <div>
-            <p className="font-display text-xl font-semibold text-text-primary">{BRAND_NAME}</p>
+            <div className="flex items-center gap-3">
+              <NavishLogo size={40} />
+              <p className="font-display text-xl font-bold text-text-primary">{BRAND_NAME}</p>
+            </div>
             <p className="mt-3 max-w-sm text-sm text-text-secondary">{BRAND_TAGLINE}</p>
             <div className="mt-5 flex flex-col gap-2">
               <a

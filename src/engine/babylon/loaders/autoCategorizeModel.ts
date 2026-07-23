@@ -63,13 +63,27 @@ export function autoCategorizeModel(
   let maxZ = -Infinity;
   meshes.forEach((mesh) => {
     const bb = mesh.getBoundingInfo().boundingBox;
-    minX = Math.min(minX, bb.minimumWorld.x);
-    minY = Math.min(minY, bb.minimumWorld.y);
-    minZ = Math.min(minZ, bb.minimumWorld.z);
-    maxX = Math.max(maxX, bb.maximumWorld.x);
-    maxY = Math.max(maxY, bb.maximumWorld.y);
-    maxZ = Math.max(maxZ, bb.maximumWorld.z);
+    const min = bb.minimumWorld;
+    const max = bb.maximumWorld;
+    if (
+      isFinite(min.x) && isFinite(min.y) && isFinite(min.z) &&
+      isFinite(max.x) && isFinite(max.y) && isFinite(max.z)
+    ) {
+      minX = Math.min(minX, min.x);
+      minY = Math.min(minY, min.y);
+      minZ = Math.min(minZ, min.z);
+      maxX = Math.max(maxX, max.x);
+      maxY = Math.max(maxY, max.y);
+      maxZ = Math.max(maxZ, max.z);
+    }
   });
+
+  if (minX === Infinity || maxX === -Infinity) {
+    minX = -5; maxX = 5;
+    minY = 0; maxY = 5;
+    minZ = -5; maxZ = 5;
+  }
+
   const modelHeight = Math.max(maxY - minY, 0.01);
   const center = new Vector3((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
   const radius = Math.max(

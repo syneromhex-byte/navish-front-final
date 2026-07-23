@@ -66,6 +66,9 @@ export class ModelLoader {
     const format = detectFormat(file.name);
     this.assertBrowserLoadable(format);
 
+    // Clear out stale files from the static store to prevent name collision caching bugs
+    FilesInputStore.FilesToLoad = {};
+
     siblingFiles.forEach((sibling) => {
       const name = sibling.name;
       const lower = name.toLowerCase();
@@ -169,7 +172,7 @@ export class ModelLoader {
     meshes.forEach((mesh) => {
       mesh.refreshBoundingInfo({});
       const radius = mesh.getBoundingInfo().boundingSphere.radiusWorld;
-      if (radius > boundingRadius) boundingRadius = radius;
+      if (isFinite(radius) && radius > boundingRadius) boundingRadius = radius;
     });
 
     const materialCount = new Set(

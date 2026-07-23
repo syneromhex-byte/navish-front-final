@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Button, Input, Textarea } from '@components/common';
 import { BRAND_CONTACT } from '@constants/brand';
 import { useClientStore } from '@store/clientStore';
+import { apiClient } from '@services/apiClient';
 
 interface ContactFormState {
   name: string;
@@ -40,13 +41,20 @@ export default function Contact() {
     if (!validate()) return;
 
     setStatus('submitting');
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    addClientFromContact({
+    const payload = {
       name: form.name.trim(),
       email: form.email.trim(),
       projectType: form.projectType.trim() || undefined,
       message: form.message.trim(),
-    });
+    };
+
+    try {
+      await apiClient.post('/contact', payload);
+    } catch (err) {
+      console.warn('Backend email dispatch warning (falling back to client store):', err);
+    }
+
+    addClientFromContact(payload);
     setStatus('success');
     setForm(INITIAL_STATE);
   };

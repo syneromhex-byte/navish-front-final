@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { projectApi } from '@services/projectApi';
 import { useClientStore } from '@store/clientStore';
+import { useUserStore } from '@store/userStore';
 
 export function useClients() {
   const storeClients = useClientStore((state) => state.clients);
   const addClientFromRegistration = useClientStore((state) => state.addClientFromRegistration);
+  const currentUser = useUserStore((state) => state.user);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -16,6 +18,9 @@ export function useClients() {
       .then((data) => {
         if (!isMounted || !Array.isArray(data)) return;
         data.forEach((c: any) => {
+          const role = (c.role || c.user?.role)?.toLowerCase();
+          if (role && role !== 'client' && role !== 'viewer') return;
+
           const email = c.email || c.user?.email;
           const name =
             c.name ||
@@ -40,5 +45,14 @@ export function useClients() {
     };
   }, [addClientFromRegistration]);
 
-  return { clients: storeClients, isLoading };
+  const filteredClients = storeClients.filter((client) => {
+    const isCurrentUser = client.email.toLowerCase() === currentUser?.email?.toLowerCase();
+    const isCurrentAdmin =
+      isCurrentUser &&
+      (currentUser?.role?.toLowerCase() === 'admin' ||
+        currentUser?.role?.toLowerCase() === 'architect');
+    return !isCurrentAdmin;
+  });
+
+  return { clients: filteredClients, isLoading };
 }

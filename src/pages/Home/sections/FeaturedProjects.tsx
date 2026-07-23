@@ -1,9 +1,13 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ProjectCard } from '@components/cards/ProjectCard';
-import { FEATURED_PROJECTS } from '@constants/marketingContent';
+import { usePortfolioStore } from '@store/portfolioStore';
 import { ROUTES } from '@constants/routes';
 
 export function FeaturedProjects() {
+  const items = usePortfolioStore((state) => state.items);
+  const featured = useMemo(() => items.filter((item) => item.isPublic).slice(0, 4), [items]);
+
   return (
     <section className="px-6 py-24 sm:py-32">
       <div className="mx-auto max-w-7xl">
@@ -25,8 +29,8 @@ export function FeaturedProjects() {
         </div>
 
         <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURED_PROJECTS.map((project, index) => (
-            <ProjectCard key={project.id} project={project} index={index} />
+          {featured.map((project, index) => (
+            <ProjectCard key={project.id} item={project} index={index} />
           ))}
         </div>
       </div>

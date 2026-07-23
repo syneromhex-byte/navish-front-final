@@ -6,7 +6,6 @@ import type { EngineManager } from '@engine/babylon/EngineManager';
 import type { CameraMode } from '@app-types/viewer.types';
 import { ROUTES } from '@constants/routes';
 import { BRAND_NAME } from '@constants/brand';
-import { buildDemoScene } from './demoScene';
 import { projectApi } from '@services/projectApi';
 import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
 import { getApiErrorMessage } from '@utils/apiError';
@@ -29,32 +28,32 @@ export default function ShareViewer() {
       engineManagerRef.current = engineManager;
 
       if (!shareToken) {
-        buildDemoScene(engineManager);
-        engineManager.optimizationManager.startAutoOptimize(60);
-        setIsReady(true);
+        setError('No share link token was provided.');
         return;
       }
 
       try {
         const project = await projectApi.getByShareToken(shareToken);
-        if (project && project.modelUrl) {
-          const metadata = await engineManager.modelLoader.loadFromUrl(project.modelUrl);
-          const root = engineManager.modelLoader.getRoot(metadata.rootId);
-          if (root) {
-            const { center, radius } = autoCategorizeModel(engineManager, root);
-            engineManager.cameraManager.frameBounds(center, radius);
-            engineManager.environmentManager.refreshReflections();
-          }
-        } else {
-          buildDemoScene(engineManager);
+        if (!project || !project.modelUrl) {
+          setError('No 3D model file has been uploaded for this shared project yet.');
+          return;
         }
+
+        const metadata = await engineManager.modelLoader.loadFromUrl(project.modelUrl);
+        const root = engineManager.modelLoader.getRoot(metadata.rootId);
+        if (root) {
+          const { center, radius } = autoCategorizeModel(engineManager, root);
+          engineManager.cameraManager.frameBounds(center, radius);
+          engineManager.environmentManager.refreshReflections();
+        }
+
         engineManager.optimizationManager.startAutoOptimize(60);
         setIsReady(true);
       } catch (err) {
-        setError(getApiErrorMessage(err, 'Invalid or expired share link.'));
+        setError(getApiErrorMessage(err, 'Failed to load the shared 3D model from the server.'));
       }
     },
-    [shareToken]
+    [shareToken],
   );
 
   const handleCameraModeChange = useCallback((mode: CameraMode) => {

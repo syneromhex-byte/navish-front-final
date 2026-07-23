@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ProjectCard } from '@components/cards/ProjectCard';
-import { FEATURED_PROJECTS, SHOWCASE_CATEGORIES } from '@constants/marketingContent';
+import { usePortfolioStore } from '@store/portfolioStore';
 
+const SHOWCASE_CATEGORIES = ['Residential', 'Commercial', 'Interior', 'Hospitality', 'Landscape'];
 const CATEGORY_FILTERS = ['All', ...SHOWCASE_CATEGORIES];
 
 export default function Portfolio() {
   const [activeCategory, setActiveCategory] = useState('All');
+  const items = usePortfolioStore((state) => state.items);
+
+  const publicItems = useMemo(() => items.filter((item) => item.isPublic), [items]);
 
   const filteredProjects =
     activeCategory === 'All'
-      ? FEATURED_PROJECTS
-      : FEATURED_PROJECTS.filter((project) => project.category === activeCategory);
+      ? publicItems
+      : publicItems.filter((project) => project.category === activeCategory);
 
   return (
     <section className="px-6 pb-24 pt-40">
@@ -24,7 +28,7 @@ export default function Portfolio() {
           </h1>
           <p className="mt-4 text-text-secondary">
             A selection of residential, commercial, and hospitality projects brought to life in
-            fully interactive 3D.
+            fully interactive 3D and VR.
           </p>
         </div>
 
@@ -45,11 +49,15 @@ export default function Portfolio() {
           ))}
         </div>
 
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredProjects.map((project, index) => (
-            <ProjectCard key={project.id} project={project} index={index} />
-          ))}
-        </div>
+        {filteredProjects.length === 0 ? (
+          <p className="mt-10 text-sm text-text-secondary">No portfolio items available in this category.</p>
+        ) : (
+          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredProjects.map((project, index) => (
+              <ProjectCard key={project.id} item={project} index={index} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

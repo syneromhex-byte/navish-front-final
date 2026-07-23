@@ -13,6 +13,7 @@ export const ROUTES = {
   dashboard: '/dashboard',
   dashboardOverview: '/dashboard',
   dashboardProjects: '/dashboard/projects',
+  dashboardPortfolio: '/dashboard/portfolio',
   dashboardClients: '/dashboard/clients',
   dashboardSettings: '/dashboard/settings',
 

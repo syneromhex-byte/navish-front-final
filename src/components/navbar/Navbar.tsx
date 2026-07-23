@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { buttonClasses } from '@components/common';
+import { NavishLogo } from '@components/common';
 import { useUserStore } from '@store/userStore';
 import { ROUTES } from '@constants/routes';
 import { BRAND_NAME } from '@constants/brand';
@@ -50,9 +51,10 @@ export function Navbar() {
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <NavLink
           to={ROUTES.home}
-          className="font-display text-lg font-semibold tracking-tight text-text-primary"
+          className="flex items-center gap-3 font-display text-xl font-bold tracking-tight text-text-primary group"
         >
-          {BRAND_NAME}
+          <NavishLogo size={44} className="transition-transform group-hover:scale-105" />
+          <span>{BRAND_NAME}</span>
         </NavLink>
 
         <div className="hidden items-center gap-8 md:flex">

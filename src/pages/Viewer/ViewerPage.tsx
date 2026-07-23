@@ -10,7 +10,8 @@ import { TransformPanel } from '@components/editor/TransformPanel/TransformPanel
 import { LightingPanel } from '@components/editor/LightingPanel/LightingPanel';
 import { EnvironmentPanel } from '@components/editor/EnvironmentPanel/EnvironmentPanel';
 import { CameraControls } from '@components/editor/CameraControls/CameraControls';
-import { Tabs } from '@components/common';
+import { Tabs, Loader } from '@components/common';
+import { projectApi } from '@services/projectApi';
 import type { EngineManager } from '@engine/babylon/EngineManager';
 import type { MaterialProperties } from '@engine/babylon/MaterialManager';
 import type { TransformValues } from '@engine/babylon/TransformManager';
@@ -21,14 +22,19 @@ import type { GeoWalkStatus } from '@engine/babylon/GeoWalkManager';
 import { useEditorStore } from '@store/editorStore';
 import { useViewerStore } from '@store/viewerStore';
 import { useProjectStore } from '@store/projectStore';
+import { usePortfolioStore } from '@store/portfolioStore';
 import { useLocalModelStore } from '@store/localModelStore';
 import { ROUTES } from '@constants/routes';
 import type { EngineStats } from '@app-types/viewer.types';
+import type { Project } from '@app-types/project.types';
 import { loadProjectScene } from './loadProjectScene';
 
 export default function ViewerPage() {
   const { projectId } = useParams<{ projectId: string }>();
-  const project = useProjectStore((state) => state.projects.find((p) => p.id === projectId));
+  const [project, setProject] = useState<Project | undefined>(undefined);
+  const [isSceneLoading, setIsSceneLoading] = useState(true);
+  const [engineManager, setEngineManager] = useState<EngineManager | null>(null);
+
   const pendingLocalModel = useLocalModelStore((state) => state.pending);
   const engineManagerRef = useRef<EngineManager | null>(null);
   const [stats, setStats] = useState<EngineStats>({ fps: 0, drawCalls: 0, activeMeshes: 0 });
@@ -83,33 +89,118 @@ export default function ViewerPage() {
     }
   }, [cameraMode]);
 
-  const handleReady = useCallback(
-    (engineManager: EngineManager) => {
-      engineManagerRef.current = engineManager;
-      engineManager.selectionManager.onSelectionChange(setSelectedIds);
-      engineManager.optimizationManager.startAutoOptimize(60);
-      engineManager.geoWalkManager.onChange(setGeoWalkStatus);
+  // Fetch project from API on mount
+  useEffect(() => {
+    if (!projectId) return;
+    setIsSceneLoading(true);
 
-      const canvas = engineManager.getEngine().getRenderingCanvas();
-      if (canvas) engineManager.gyroscopeManager.enableOrbitAutoLook(canvas);
+    if (projectId.startsWith('port_')) {
+      const pItem = usePortfolioStore.getState().items.find((i) => i.id === projectId);
+      if (pItem) {
+        setProject({
+          id: pItem.id,
+          name: pItem.title,
+          modelUrl: pItem.modelUrl,
+          status: 'APPROVED',
+          sizeBytes: pItem.sizeBytes,
+          clientName: 'Portfolio Item',
+        } as unknown as Project);
+      } else {
+        setModelError('Portfolio item not found.');
+      }
+      return;
+    }
 
-      const matchingLocalModel =
-        pendingLocalModel && pendingLocalModel.projectId === projectId
-          ? pendingLocalModel
-          : undefined;
-      const localFile = matchingLocalModel?.file;
-
-      loadProjectScene(
-        engineManager,
-        project,
-        localFile,
-        matchingLocalModel?.siblingFiles,
-      ).then(({ entries, error }) => {
-        setObjects(entries);
-        setModelError(error);
+    projectApi
+      .get(projectId)
+      .then((data) => {
+        if (data.modelUrl?.includes('example.com') || data.modelUrl?.startsWith('blob:')) {
+          data.modelUrl = undefined;
+        }
+        setProject(data);
+        useProjectStore.getState().updateProject(projectId, data);
+      })
+      .catch((err) => {
+        console.error('Failed to load project from API', err);
+        const localProj = useProjectStore.getState().projects.find((p) => p.id === projectId);
+        setProject(localProj);
       });
+  }, [projectId]);
+
+  // Load project scene once project data AND engine manager are ready
+  useEffect(() => {
+    if (!engineManager) return;
+
+    const matchingLocalModel =
+      pendingLocalModel && pendingLocalModel.projectId === projectId
+        ? pendingLocalModel
+        : undefined;
+    const localFile = matchingLocalModel?.file;
+
+    if (!localFile && !project) return;
+
+    setIsSceneLoading(true);
+    loadProjectScene(
+      engineManager,
+      project,
+      localFile,
+      matchingLocalModel?.siblingFiles,
+    ).then(({ entries, error }) => {
+      setObjects(entries);
+      setModelError(error);
+      setIsSceneLoading(false);
+    });
+  }, [engineManager, project, projectId, pendingLocalModel]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleUploadModelDirectly = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !engineManager || !projectId) return;
+
+    setIsSceneLoading(true);
+    setModelError(null);
+    setIsUploading(true);
+
+    try {
+      const { entries, error } = await loadProjectScene(engineManager, project, file);
+      if (error) {
+        setModelError(error);
+      } else {
+        setObjects(entries);
+      }
+
+      const uploaded = await projectApi.uploadModel(file);
+      if (uploaded && uploaded.modelUrl) {
+        await projectApi.update(projectId, {
+          modelUrl: uploaded.modelUrl,
+          status: 'ready',
+        });
+        setProject((prev) => (prev ? { ...prev, modelUrl: uploaded.modelUrl } : prev));
+      }
+    } catch (err: any) {
+      console.error('Direct model upload failed:', err);
+    } finally {
+      setIsSceneLoading(false);
+      setIsUploading(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
+  const handleReady = useCallback(
+    (em: EngineManager) => {
+      engineManagerRef.current = em;
+      setEngineManager(em);
+
+      em.selectionManager.onSelectionChange(setSelectedIds);
+      em.optimizationManager.startAutoOptimize(60);
+      em.geoWalkManager.onChange(setGeoWalkStatus);
+
+      const canvas = em.getEngine().getRenderingCanvas();
+      if (canvas) em.gyroscopeManager.enableOrbitAutoLook(canvas);
     },
-    [setSelectedIds, project, projectId, pendingLocalModel],
+    [setSelectedIds],
   );
 
   const handleSelectFromPanel = useCallback((id: string) => {
@@ -358,11 +449,57 @@ export default function ViewerPage() {
 
   return (
     <div className="relative h-full w-full">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".glb,.gltf,.obj,.fbx"
+        className="hidden"
+        onChange={handleUploadModelDirectly}
+      />
+
       <BabylonCanvas onReady={handleReady} />
 
+      {isSceneLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-surface-0/80 backdrop-blur-sm z-50">
+          <Loader size="lg" label="Loading 3D model..." />
+        </div>
+      )}
+
+      {!isSceneLoading && !project?.modelUrl && objects.length === 0 && !modelError && (
+        <div className="glass-panel absolute left-1/2 top-1/2 z-50 flex max-w-sm -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3.5 rounded-2xl p-6 text-center shadow-2xl backdrop-blur-md border border-white/10">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-text-primary">No 3D Model Attached</h3>
+            <p className="mt-1 text-xs text-text-secondary">Upload a .glb, .gltf, .fbx, or .obj file to view and interact in 3D</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="mt-1 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-semibold text-white shadow-lg transition-all hover:bg-primary-hover active:scale-95 disabled:opacity-50"
+          >
+            {isUploading ? 'Uploading...' : 'Upload 3D Model'}
+          </button>
+        </div>
+      )}
+
       {modelError && (
-        <div className="glass-panel absolute left-1/2 top-4 max-w-md -translate-x-1/2 rounded-xl px-4 py-3 text-center text-sm text-primary">
-          Could not load this model — {modelError}
+        <div className="glass-panel absolute left-1/2 top-4 z-50 flex max-w-md -translate-x-1/2 flex-col items-center gap-2.5 rounded-xl px-5 py-4 text-center text-sm shadow-xl">
+          <p className="font-medium text-primary">{modelError}</p>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {isUploading ? 'Uploading Model...' : 'Upload 3D Model (.glb, .fbx, .obj)'}
+          </button>
         </div>
       )}
 
@@ -469,7 +606,7 @@ export default function ViewerPage() {
           />
         )}
 
-      <div className="glass-panel absolute bottom-24 right-4 rounded-lg px-3 py-2 text-xs text-text-secondary">
+      <div className="glass-panel absolute bottom-4 right-4 z-30 rounded-lg px-3 py-2 text-xs text-text-secondary">
         <p className="tabular">{stats.fps} fps</p>
         <p className="tabular">{stats.drawCalls} draw calls</p>
         <p className="tabular">{stats.activeMeshes} active meshes</p>

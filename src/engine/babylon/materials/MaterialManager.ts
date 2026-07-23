@@ -37,18 +37,21 @@ export class MaterialManager {
         if (cloned && cloned instanceof PBRMaterial) {
           cloned.backFaceCulling = false;
           cloned.twoSidedLighting = true;
+          cloned.forceDepthWrite = true;
           mesh.material = cloned;
           return cloned;
         }
       }
       mesh.material.backFaceCulling = false;
       mesh.material.twoSidedLighting = true;
+      mesh.material.forceDepthWrite = true;
       return mesh.material;
     }
 
     const material = new PBRMaterial(uniqueName, this.scene);
     material.backFaceCulling = false;
     material.twoSidedLighting = true;
+    material.forceDepthWrite = true;
     material.albedoColor = Color3.FromHexString(DEFAULT_PROPERTIES.albedoColor);
     material.metallic = DEFAULT_PROPERTIES.metallic;
     material.roughness = DEFAULT_PROPERTIES.roughness;

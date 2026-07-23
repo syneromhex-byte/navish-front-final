@@ -8,6 +8,7 @@ import { cn } from '@utils/cn';
 const SIDEBAR_LINKS = [
   { label: 'Overview', to: ROUTES.dashboardOverview },
   { label: 'Projects', to: ROUTES.dashboardProjects },
+  { label: 'Portfolio Showcase', to: ROUTES.dashboardPortfolio },
   { label: 'Clients', to: ROUTES.dashboardClients },
   { label: 'Settings', to: ROUTES.dashboardSettings },
 ];

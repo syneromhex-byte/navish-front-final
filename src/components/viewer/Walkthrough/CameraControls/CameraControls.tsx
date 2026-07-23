@@ -28,7 +28,7 @@ export function CameraControls({
   const isGeoWalkActive = geoWalkStatus?.isEnabled ?? false;
 
   return (
-    <div className="glass-panel absolute bottom-24 left-1/2 flex -translate-x-1/2 flex-col gap-3 rounded-2xl p-3 sm:w-72">
+    <div className="glass-panel absolute bottom-24 right-4 z-40 flex flex-col gap-3 rounded-2xl p-4 sm:w-80 shadow-2xl backdrop-blur-md">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold text-text-primary">Motion Look</p>
         <Button variant={isGyroActive ? 'primary' : 'secondary'} size="sm" onClick={onToggleGyro}>

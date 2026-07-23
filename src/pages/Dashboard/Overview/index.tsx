@@ -6,6 +6,7 @@ import { useProjects } from '@hooks/useProjects';
 import { useUserStore } from '@store/userStore';
 import { ROUTES } from '@constants/routes';
 import { formatRelativeDate, formatBytes } from '@utils/format';
+import { resolveServerUrl } from '@utils/resolveServerUrl';
 import { useClients } from '@hooks/useClients';
 import { CreateProjectWizard } from '../Projects/CreateProjectWizard';
 
@@ -99,7 +100,7 @@ export default function Overview() {
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {project.thumbnailUrl ? (
                       <img
-                        src={project.thumbnailUrl}
+                        src={resolveServerUrl(project.thumbnailUrl)}
                         alt={project.name}
                         className="h-10 w-14 rounded-lg object-cover bg-black border border-border-subtle shrink-0"
                       />

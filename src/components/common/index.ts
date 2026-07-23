@@ -37,4 +37,5 @@ export type { FileDropZoneProps } from './FileDropZone';
 
 export { UploadProgressDisplay } from './UploadProgress';
 export type { UploadProgressProps } from './UploadProgress';
+export { NavishLogo } from './NavishLogo';
 

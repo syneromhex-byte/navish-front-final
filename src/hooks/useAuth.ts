@@ -38,14 +38,17 @@ export function useAuth() {
       setSession(session.user, session.accessToken, undefined);
 
       if (session.user) {
-        const displayName =
-          session.user.name ||
-          `${session.user.firstName || ''} ${session.user.lastName || ''}`.trim() ||
-          'Client';
-        useClientStore.getState().addClientFromRegistration({
-          name: displayName,
-          email: session.user.email,
-        });
+        const role = session.user.role?.toLowerCase();
+        if (role === 'client' || role === 'viewer') {
+          const displayName =
+            session.user.name ||
+            `${session.user.firstName || ''} ${session.user.lastName || ''}`.trim() ||
+            'Client';
+          useClientStore.getState().addClientFromRegistration({
+            name: displayName,
+            email: session.user.email,
+          });
+        }
       }
 
       navigate(homeForRole(session.user.role));

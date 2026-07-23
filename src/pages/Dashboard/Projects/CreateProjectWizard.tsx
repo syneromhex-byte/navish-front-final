@@ -7,7 +7,7 @@ import { PROJECT_CATEGORIES } from '@constants/projectCategories';
 import { modelApi } from '@services/modelApi';
 import { projectApi } from '@services/projectApi';
 import { formatBytes } from '@utils/format';
-import type { ProjectCategory, UploadProgress, ProcessingStep, ModelFormat } from '@app-types/project.types';
+import type { Project, ProjectCategory, UploadProgress, ProcessingStep, ModelFormat } from '@app-types/project.types';
 
 import { useClients } from '@hooks/useClients';
 
@@ -24,6 +24,7 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
   const addClientFromRegistration = useClientStore((state) => state.addClientFromRegistration);
   const addProject = useProjectStore((state) => state.addProject);
   const updateProject = useProjectStore((state) => state.updateProject);
+  const removeProject = useProjectStore((state) => state.removeProject);
 
   const [step, setStep] = useState<StepIdx>(1);
 
@@ -61,6 +62,7 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
     storageSaved: number;
     processingTime: string;
     modelUrl: string;
+    thumbnailUrl?: string;
     format: ModelFormat;
   } | null>(null);
 
@@ -72,7 +74,6 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
     }
     const objectUrl = URL.createObjectURL(thumbnailFile);
     setThumbnailPreview(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
   }, [thumbnailFile]);
 
   const toggleRoom = (roomId: string) => {
@@ -185,18 +186,17 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
         });
       }
 
-      const originalSize = primaryFile.size;
-      const optimizedSize = response.optimizedSize ?? Math.round(originalSize * 0.42);
-      const ratio = (((originalSize - optimizedSize) / originalSize) * 100).toFixed(0);
+      const originalSize = response.originalSize || primaryFile.size;
       const secondsElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
       setUploadedModelData({
         originalSize,
-        optimizedSize,
-        compressionRatio: `${ratio}%`,
-        storageSaved: originalSize - optimizedSize,
+        optimizedSize: originalSize,
+        compressionRatio: '0%',
+        storageSaved: 0,
         processingTime: `${secondsElapsed}s`,
         modelUrl: response.modelUrl,
+        thumbnailUrl: response.thumbnailUrl,
         format: primaryFile.name.split('.').pop()?.toLowerCase() as ModelFormat,
       });
 
@@ -209,89 +209,14 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
         };
       });
     } catch (err: any) {
-      // Fallback: Check if it looks like there's no backend, simulate upload for premium UX demo
-      console.warn('Real upload failed or backend not reachable, simulating premium demo upload flow...', err);
-
-      let currentPercent = 0;
-      const simTimer = setInterval(() => {
-        currentPercent += 15;
-        if (currentPercent >= 100) {
-          clearInterval(simTimer);
-          simulateProcessing();
-        } else {
-          const loaded = Math.round((currentPercent / 100) * primaryFile.size);
-          const elapsed = (Date.now() - startTime) / 1000;
-          const speed = loaded / elapsed;
-          const remainingMs = ((primaryFile.size - loaded) / speed) * 1000;
-
-          setUploadProgress((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              percent: currentPercent,
-              uploadedBytes: loaded,
-              speed,
-              remainingMs,
-            };
-          });
-        }
-      }, 300);
-
-      const simulateProcessing = async () => {
-        setUploadProgress((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            status: 'processing',
-            percent: 100,
-            processingSteps: prev.processingSteps?.map((s, i) =>
-              i === 0 ? { ...s, status: 'active' } : s,
-            ),
-          };
-        });
-
-        const activeSteps = [...steps];
-        for (let i = 0; i < activeSteps.length; i++) {
-          await new Promise((resolve) => setTimeout(resolve, 800));
-          const currentStep = activeSteps[i];
-          if (currentStep) currentStep.status = 'complete';
-          const nextStep = activeSteps[i + 1];
-          if (i < activeSteps.length - 1 && nextStep) {
-            nextStep.status = 'active';
-          }
-          setUploadProgress((prev) => {
-            if (!prev) return null;
-            return {
-              ...prev,
-              processingSteps: [...activeSteps],
-            };
-          });
-        }
-
-        const originalSize = primaryFile.size;
-        const optimizedSize = Math.round(originalSize * 0.42);
-        const ratio = '58%';
-        const secondsElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
-        setUploadedModelData({
-          originalSize,
-          optimizedSize,
-          compressionRatio: ratio,
-          storageSaved: originalSize - optimizedSize,
-          processingTime: `${secondsElapsed}s`,
-          modelUrl: URL.createObjectURL(primaryFile),
-          format: primaryFile.name.split('.').pop()?.toLowerCase() as ModelFormat,
-        });
-
-        setUploadProgress((prev) => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            status: 'complete',
-            percent: 100,
-          };
-        });
-      };
+      console.error('Model upload failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Could not upload model file.';
+      setUploadProgress({
+        fileName: primaryFile.name,
+        percent: 0,
+        status: 'error',
+        error: errorMessage,
+      });
     }
   };
 
@@ -318,13 +243,10 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
       ...customRooms.filter((r) => rooms.includes(r.id)).map((r) => r.label),
     ];
 
-    const project = addProject({
+    const projectPayload: Partial<Project> = {
       name: projectName,
       category: projectType,
       clientName: finalClientName,
-    });
-
-    updateProject(project.id, {
       clientEmail: finalClientEmail,
       modelUrl: uploadedModelData?.modelUrl ?? undefined,
       sizeBytes: uploadedModelData?.optimizedSize ?? 0,
@@ -333,19 +255,34 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
       rooms: selectedRoomLabels,
       location: location || undefined,
       description: projectDescription || undefined,
-      thumbnailUrl: thumbnailPreview || undefined,
+      thumbnailUrl: uploadedModelData?.thumbnailUrl || thumbnailPreview || undefined,
       status: uploadedModelData ? 'ready' : 'draft',
       modelFormat: uploadedModelData?.format ?? 'glb',
+    };
+
+    // Create a local draft project immediately so UI updates instantly
+    const localProj = addProject({
+      name: projectName,
+      category: projectType,
+      clientName: finalClientName,
     });
 
-    // Optionally persist to backend API if reachable
+    updateProject(localProj.id, projectPayload);
+
+    // Persist to backend API
     projectApi
-      .create({
-        name: projectName,
-        description: projectDescription || undefined,
+      .create(projectPayload)
+      .then((savedProject) => {
+        if (savedProject && savedProject.id) {
+          // Deduplicate: Remove the temporary local project and insert the backend version
+          removeProject(localProj.id);
+          useProjectStore.setState((state) => ({
+            projects: [savedProject, ...state.projects.filter((p) => p.id !== localProj.id)],
+          }));
+        }
       })
       .catch((err: unknown) => {
-        console.warn('Remote backend project save bypassed:', err);
+        console.warn('Remote backend project save failed/bypassed, keeping local draft:', err);
       });
 
     onSuccess?.();
@@ -660,31 +597,19 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
                           <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
                           <path d="M7 10.5L9.5 13L13.5 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                         </svg>
-                        <span className="font-display text-sm font-semibold">Model Optimization Report</span>
+                        <span className="font-display text-sm font-semibold">Model Upload Report</span>
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-4 text-xs sm:grid-cols-3">
                         <div>
-                          <p className="text-text-tertiary">Original Size</p>
+                          <p className="text-text-tertiary">File Size</p>
                           <p className="mt-0.5 font-medium text-text-primary">{formatBytes(uploadedModelData.originalSize)}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-tertiary">Compressed Size</p>
-                          <p className="mt-0.5 font-medium text-emerald-400">{formatBytes(uploadedModelData.optimizedSize)}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-tertiary">Storage Saved</p>
-                          <p className="mt-0.5 font-medium text-text-primary">{formatBytes(uploadedModelData.storageSaved)}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-tertiary">Compression Ratio</p>
-                          <p className="mt-0.5 font-medium text-emerald-400">{uploadedModelData.compressionRatio}</p>
                         </div>
                         <div>
                           <p className="text-text-tertiary">Processing Time</p>
                           <p className="mt-0.5 font-medium text-text-primary">{uploadedModelData.processingTime}</p>
                         </div>
                         <div>
-                          <p className="text-text-tertiary">Format Format</p>
+                          <p className="text-text-tertiary">Format</p>
                           <p className="mt-0.5 font-medium uppercase text-text-primary">{uploadedModelData.format}</p>
                         </div>
                       </div>
@@ -719,9 +644,9 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-text-secondary">Model Optimization</span>
+                        <span className="text-text-secondary">Uploaded Model</span>
                         <span className="font-medium text-emerald-400">
-                          {uploadedModelData ? `Optimized (${uploadedModelData.compressionRatio} Saved)` : 'Draft Mode (No Model)'}
+                          {uploadedModelData ? `${formatBytes(uploadedModelData.originalSize)} (${uploadedModelData.format.toUpperCase()})` : 'Draft Mode (No Model)'}
                         </span>
                       </div>
                       <div className="flex justify-between">
