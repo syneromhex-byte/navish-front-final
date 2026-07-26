@@ -11,9 +11,15 @@ export default function MyModels() {
   const { projects, isLoading } = useProjects();
 
   const myModels = useMemo(() => {
-    const userEmailNorm = user?.email?.toLowerCase();
-    const userNameNorm = (user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`).trim().toLowerCase();
-    const userIdNorm = user?.id;
+    if (!user) return projects;
+    const userRole = user.role?.toUpperCase();
+    if (userRole === 'CLIENT') {
+      return projects;
+    }
+
+    const userEmailNorm = user.email?.toLowerCase();
+    const userNameNorm = (user.name || `${user.firstName || ''} ${user.lastName || ''}`).trim().toLowerCase();
+    const userIdNorm = user.id;
 
     return projects.filter((project) => {
       const pEmail = project.clientEmail?.toLowerCase();

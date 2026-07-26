@@ -13,11 +13,13 @@ function formatSpeed(bytesPerSecond: number): string {
 }
 
 function formatTime(ms: number): string {
-  if (ms <= 0) return '—';
-  const seconds = Math.ceil(ms / 1000);
-  if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''}`;
-  const minutes = Math.ceil(seconds / 60);
-  return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+  if (ms <= 0 || !Number.isFinite(ms)) return '—';
+  const totalSeconds = Math.round(ms / 1000);
+  if (totalSeconds < 1) return '< 1s';
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
 }
 
 function StepIcon({ status }: { status: ProcessingStep['status'] }) {

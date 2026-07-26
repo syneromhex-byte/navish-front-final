@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Button, Input, Modal, Textarea, UploadProgressDisplay } from '@components/common';
 import { usePortfolioStore } from '@store/portfolioStore';
 import type { PortfolioItem } from '@store/portfolioStore';
+import type { UploadProgress } from '@app-types/project.types';
 import { modelApi } from '@services/modelApi';
 import { formatBytes } from '@utils/format';
 import { ROUTES } from '@constants/routes';
@@ -28,12 +29,7 @@ export default function DashboardPortfolio() {
   const [format, setFormat] = useState<string | undefined>('glb');
 
   // Upload states
-  const [uploadProgress, setUploadProgress] = useState<{
-    fileName: string;
-    percent: number;
-    status: 'uploading' | 'complete' | 'error';
-    error?: string;
-  } | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
 
   const resetForm = () => {
     setTitle('');
@@ -117,19 +113,35 @@ export default function DashboardPortfolio() {
       let uploadedUrl = '';
       let thumbUrl = '';
       const ext = file.name.split('.').pop()?.toLowerCase();
+      const startTime = Date.now();
 
       try {
         const response = await modelApi.upload(file, (progressEvent) => {
           const total = progressEvent.total ?? file.size;
-          const loaded = progressEvent.loaded;
-          const percent = Math.min(100, Math.round((loaded / total) * 100));
-          setUploadProgress((prev) => (prev ? { ...prev, percent } : null));
+          const loaded = Math.min(progressEvent.loaded, total);
+          const percent = Math.min(100, (loaded / total) * 100);
+          const elapsed = (Date.now() - startTime) / 1000;
+          const speed = elapsed > 0.1 ? loaded / elapsed : 0;
+          const remainingBytes = Math.max(0, total - loaded);
+          const remainingMs = speed > 0 ? (remainingBytes / speed) * 1000 : 0;
+
+          setUploadProgress((prev) => {
+            if (!prev) return null;
+            return {
+              ...prev,
+              percent,
+              uploadedBytes: loaded,
+              totalBytes: total,
+              speed,
+              remainingMs,
+            };
+          });
         });
         uploadedUrl = response.modelUrl;
         if (response.thumbnailUrl) thumbUrl = response.thumbnailUrl;
       } catch (err: any) {
         console.warn('Backend upload failed, using local object URL fallback:', err);
-        setUploadProgress((prev) => (prev ? { ...prev, percent: 100 } : null));
+        setUploadProgress((prev) => (prev ? { ...prev, percent: 100, status: 'complete' } : null));
         uploadedUrl = URL.createObjectURL(file);
       }
 

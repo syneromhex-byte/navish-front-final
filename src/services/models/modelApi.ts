@@ -81,8 +81,18 @@ export const modelApi = {
     } else if (isMultipart && presignedParts) {
       // S3 Multipart chunked upload
       const uploadedParts: { partNumber: number; eTag: string }[] = [];
-      const partSize = 10 * 1024 * 1024; // 10MB per part (must match PART_SIZE on backend)
+      const partSize = 10 * 1024 * 1024; // 10MB per part
       const totalParts = presignedParts.length;
+      const partLoadedMap = new Array<number>(totalParts).fill(0);
+
+      const notifyOverallProgress = () => {
+        if (!onUploadProgress) return;
+        const totalLoaded = partLoadedMap.reduce((acc, curr) => acc + curr, 0);
+        onUploadProgress({
+          loaded: Math.min(totalLoaded, file.size),
+          total: file.size,
+        });
+      };
 
       for (let i = 0; i < totalParts; i++) {
         const start = i * partSize;
@@ -98,7 +108,14 @@ export const modelApi = {
             'Content-Type': file.type || 'application/octet-stream',
           },
           timeout: 0,
+          onUploadProgress: (pEvent) => {
+            partLoadedMap[i] = pEvent.loaded || 0;
+            notifyOverallProgress();
+          },
         });
+
+        partLoadedMap[i] = chunk.size;
+        notifyOverallProgress();
 
         const eTag = partRes.headers.etag || 'local-mock-etag';
 
@@ -106,13 +123,6 @@ export const modelApi = {
           partNumber: part.partNumber,
           eTag: eTag.replace(/"/g, ''),
         });
-
-        if (onUploadProgress) {
-          onUploadProgress({
-            loaded: end,
-            total: file.size,
-          });
-        }
       }
 
       // 3. Complete multipart upload on backend

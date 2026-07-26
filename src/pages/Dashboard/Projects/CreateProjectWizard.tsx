@@ -134,11 +134,11 @@ export function CreateProjectWizard({ isOpen, onClose, onSuccess }: CreateProjec
       // Attempt real backend upload
       const response = await modelApi.upload(primaryFile, (progressEvent) => {
         const total = progressEvent.total ?? primaryFile.size;
-        const loaded = progressEvent.loaded;
-        const percent = (loaded / total) * 100;
+        const loaded = Math.min(progressEvent.loaded, total);
+        const percent = Math.min(100, (loaded / total) * 100);
         const elapsed = (Date.now() - startTime) / 1000;
-        const speed = elapsed > 0 ? loaded / elapsed : 0;
-        const remainingBytes = total - loaded;
+        const speed = elapsed > 0.1 ? loaded / elapsed : 0;
+        const remainingBytes = Math.max(0, total - loaded);
         const remainingMs = speed > 0 ? (remainingBytes / speed) * 1000 : 0;
 
         setUploadProgress((prev) => {
