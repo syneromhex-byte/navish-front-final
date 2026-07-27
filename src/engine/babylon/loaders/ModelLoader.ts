@@ -14,6 +14,12 @@ import type {
 import '@babylonjs/loaders/glTF';
 import '@babylonjs/loaders/OBJ';
 import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
+import { Tools } from '@babylonjs/core/Misc/tools';
+
+// Safeguard: Ensure Babylon's URL preprocessing does not append query parameters or headers to S3 presigned URLs
+Tools.PreprocessUrl = (url: string) => {
+  return url;
+};
 import type {
   LoadedModelMetadata,
   ModelLoadProgress,

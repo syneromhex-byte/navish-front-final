@@ -15,9 +15,16 @@ export const apiClient = axios.create({
 // ─── Request interceptor — attach access token ───────────────────────────────
 
 apiClient.interceptors.request.use((config) => {
-  const isRefreshEndpoint = config.url?.includes('/auth/refresh');
+  const url = config.url || '';
+  const isPresignedS3Url =
+    url.includes('X-Amz-Algorithm') ||
+    url.includes('X-Amz-Signature') ||
+    url.includes('Signature=') ||
+    url.includes('.amazonaws.com');
+  const isRefreshEndpoint = url.includes('/auth/refresh');
   const accessToken = useUserStore.getState().accessToken;
-  if (accessToken && !isRefreshEndpoint) {
+
+  if (accessToken && !isRefreshEndpoint && !isPresignedS3Url) {
     config.headers.set('Authorization', `Bearer ${accessToken}`);
   }
   return config;
