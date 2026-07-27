@@ -56,7 +56,7 @@ export default function Settings() {
     setPasswordStatus('saving');
     setPasswordError(null);
     try {
-      await authApi.changePassword({ currentPassword, newPassword });
+      await authApi.changePassword({ currentPassword, newPassword, confirmPassword: newPassword });
       setPasswordStatus('saved');
       setCurrentPassword('');
       setNewPassword('');

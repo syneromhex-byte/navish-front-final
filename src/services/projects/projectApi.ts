@@ -41,7 +41,7 @@ export const projectApi = {
   remove: (id: string) =>
     apiClient
       .delete<ApiEnvelope<void>>(`/projects/${id}`)
-      .then((res) => (res.data?.data ?? res.data) as void),
+      .then(() => undefined),
 
   listClients: () =>
     apiClient
