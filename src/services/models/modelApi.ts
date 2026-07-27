@@ -76,6 +76,8 @@ export const modelApi = {
       const data = completeRes.data.data as any;
       return {
         ...data,
+        id: data.id || data.modelId || data._id,
+        modelId: data.modelId || data.id || data._id,
         modelUrl: data.presignedUrl || data.modelUrl || data.publicUrl,
       };
     } else if (isMultipart && presignedParts) {
@@ -129,6 +131,8 @@ export const modelApi = {
       const completeRes = await apiClient.post<{
         success: boolean;
         data: {
+          id?: string;
+          modelId?: string;
           modelUrl: string;
           presignedUrl?: string;
           originalSize?: number;
@@ -144,6 +148,8 @@ export const modelApi = {
       const data = completeRes.data.data as any;
       return {
         ...data,
+        id: data.id || data.modelId || data._id,
+        modelId: data.modelId || data.id || data._id,
         modelUrl: data.presignedUrl || data.modelUrl || data.publicUrl,
       };
     } else {
@@ -151,6 +157,8 @@ export const modelApi = {
       const streamRes = await apiClient.post<{
         success: boolean;
         data: {
+          id?: string;
+          modelId?: string;
           modelUrl: string;
           presignedUrl?: string;
           originalSize?: number;
@@ -168,16 +176,18 @@ export const modelApi = {
       const data = streamRes.data.data as any;
       return {
         ...data,
+        id: data.id || data.modelId || data._id,
+        modelId: data.modelId || data.id || data._id,
         modelUrl: data.presignedUrl || data.modelUrl || data.publicUrl,
       };
     }
   },
 
   /**
-   * Fetches model metadata and its presigned GET URL by ID.
+   * Fetches model metadata and its presigned GET URL using the Database Model Primary Key.
    */
-  getModel: async (id: string) => {
-    const res = await apiClient.get<{ success: boolean; data: any }>(`/models/${id}`);
+  getModel: async (databaseModelId: string) => {
+    const res = await apiClient.get<{ success: boolean; data: any }>(`/models/${databaseModelId}`);
     const data = res.data.data;
     return {
       ...data,
@@ -186,11 +196,12 @@ export const modelApi = {
   },
 
   /**
-   * Fetches a fresh presigned GET URL for a specific model ID.
+   * Fetches a fresh presigned GET URL using the Database Model Primary Key (id column/field in PostgreSQL/MongoDB).
+   * Note: Expects databaseModelId (e.g. primary key ID), NOT an S3 filename or Project ID.
    */
-  getPresignedUrl: async (id: string, expiresIn?: number) => {
+  getPresignedUrl: async (databaseModelId: string, expiresIn?: number) => {
     const res = await apiClient.get<any>(
-      `/models/${id}/presigned-url`,
+      `/models/${databaseModelId}/presigned-url`,
       { params: { expiresIn } },
     );
     const data = res.data;

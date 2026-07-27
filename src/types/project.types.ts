@@ -43,6 +43,8 @@ export interface Project {
   rooms?: string[];
   uploadedBy?: string;
   modelStatus?: ModelStatus;
+  /** Primary key of the model record in PostgreSQL / MongoDB database */
+  modelId?: string;
 }
 
 export interface Client {

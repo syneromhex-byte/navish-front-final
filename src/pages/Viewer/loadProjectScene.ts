@@ -59,7 +59,8 @@ export async function loadProjectScene(
       };
     }
 
-    const resolvedUrl = (await getAuthorizedModelUrl(project.modelUrl, project.id)) || resolveServerUrl(project.modelUrl);
+    const databaseModelId = project.modelId || project.id;
+    const resolvedUrl = (await getAuthorizedModelUrl(project.modelUrl, databaseModelId)) || resolveServerUrl(project.modelUrl);
     if (!resolvedUrl || resolvedUrl.includes('example.com') || resolvedUrl.startsWith('blob:')) {
       return {
         entries: [],

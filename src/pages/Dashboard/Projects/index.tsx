@@ -337,7 +337,8 @@ export default function DashboardProjects() {
 
   const handleDownloadModel = async (project: Project) => {
     if (!project.modelUrl) return;
-    const downloadUrl = (await getAuthorizedModelUrl(project.modelUrl, project.id)) || project.modelUrl;
+    const databaseModelId = project.modelId || project.id;
+    const downloadUrl = (await getAuthorizedModelUrl(project.modelUrl, databaseModelId)) || project.modelUrl;
     // Create direct anchor element and download the linked GLB/model
     const link = document.createElement('a');
     link.href = downloadUrl;

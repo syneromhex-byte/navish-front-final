@@ -41,7 +41,8 @@ export default function ShareViewer() {
           return;
         }
 
-        const modelUrlToLoad = (await getAuthorizedModelUrl(project.modelUrl, project.id)) || project.modelUrl;
+        const databaseModelId = project.modelId || project.id;
+        const modelUrlToLoad = (await getAuthorizedModelUrl(project.modelUrl, databaseModelId)) || project.modelUrl;
         const metadata = await engineManager.modelLoader.loadFromUrl(modelUrlToLoad);
         const root = engineManager.modelLoader.getRoot(metadata.rootId);
         if (root) {
