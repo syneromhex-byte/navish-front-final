@@ -44,18 +44,23 @@ export async function getAuthorizedModelUrl(
     return rawUrl;
   }
 
-  // Option A: Call /api/v1/models/<DATABASE_MODEL_ID>/presigned-url using the actual primary key
-  if (databaseModelId && typeof databaseModelId === 'string' && databaseModelId.trim() !== '') {
-    try {
-      const presignedUrl = await modelApi.getPresignedUrl(databaseModelId.trim());
-      if (presignedUrl) {
-        return presignedUrl;
-      }
-    } catch (err) {
-      console.warn(`Failed to fetch presigned URL for model ID ${databaseModelId}:`, err);
-    }
+  if (!databaseModelId || typeof databaseModelId !== 'string' || databaseModelId.trim() === '') {
+    console.warn('⚠️ getAuthorizedModelUrl called without a valid databaseModelId! Falling back to raw URL.', {
+      rawUrl,
+      databaseModelId,
+    });
+    return resolveServerUrl(rawUrl);
   }
 
-  return resolveServerUrl(rawUrl);
+  try {
+    const presignedUrl = await modelApi.getPresignedUrl(databaseModelId.trim());
+    if (!presignedUrl) {
+      throw new Error(`API responded, but presignedUrl was missing or empty for databaseModelId: ${databaseModelId}`);
+    }
+    return presignedUrl;
+  } catch (err) {
+    console.error('❌ Failed to fetch presigned URL for databaseModelId:', databaseModelId, err);
+    throw err;
+  }
 }
 
