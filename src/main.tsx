@@ -1,19 +1,10 @@
 // --- ENHANCED AWS PRESIGNED URL CLEANER (FETCH & XHR) ---
 function sanitizeAwsUrl(url: string): string {
-  if (url && url.includes('X-Amz-Algorithm')) {
-    return url
-      .replace(/&x-amz-checksum-mode=[^&]*/g, '')
-      .replace(/&x-id=[^&]*/g, '')
-      .replace(/&x-amz-checksum-crc32=[^&]*/g, '')
-      .replace(/&x-amz-sdk-checksum-algorithm=[^&]*/g, '')
-      .replace(/&x-amz-checksum-[^&]*=[^&]*/g, '') // Catch-all for any checksum params
-      .replace(/\?x-amz-checksum-mode=[^&]*&?/g, '?')
-      .replace(/\?x-id=[^&]*&?/g, '?')
-      .replace(/\?x-amz-checksum-crc32=[^&]*&?/g, '?')
-      .replace(/\?x-amz-sdk-checksum-algorithm=[^&]*&?/g, '?')
-      .replace(/\?x-amz-checksum-[^&]*&?/g, '?')
-      .replace(/\?$/, ''); // Clean trailing question mark if empty
+  // Do not alter AWS S3 presigned URLs or requests containing signature parameters
+  if (url && (url.includes('X-Amz-Algorithm') || url.includes('X-Amz-Signature'))) {
+    return url;
   }
+  // Keep original logic for non-AWS URLs if needed
   return url;
 }
 

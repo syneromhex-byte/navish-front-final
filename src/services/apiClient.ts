@@ -7,7 +7,7 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://navish-arc.site/api/v1',
   withCredentials: true, // sends the httpOnly refresh-token cookie automatically
   timeout: 15_000,       // abort requests that hang for more than 15 s
 });
@@ -25,6 +25,10 @@ apiClient.interceptors.request.use((config) => {
   const accessToken = useUserStore.getState().accessToken;
 
   if (isPresignedS3Url) {
+    if (typeof config.headers.delete === 'function') {
+      config.headers.delete('Authorization');
+      config.headers.delete('authorization');
+    }
     delete config.headers['Authorization'];
     delete config.headers['authorization'];
   } else if (accessToken && !isRefreshEndpoint) {

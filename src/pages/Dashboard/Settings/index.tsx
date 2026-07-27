@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Button, Input } from '@components/common';
 import { useUserStore } from '@store/userStore';
-import { apiClient } from '@services/apiClient';
+import { authApi } from '@services/authApi';
 import { getApiErrorMessage } from '@utils/apiError';
 
 export default function Settings() {
@@ -26,13 +26,13 @@ export default function Settings() {
     setProfileStatus('saving');
     setProfileError(null);
     try {
-      const { data } = await apiClient.put<any>('/auth/profile', { name, email });
-      const updatedUser = data.user ?? data;
-      if (token) setSession(updatedUser, token, refresh);
+      const updatedUser = await authApi.updateProfile({ name, email });
+      if (token && updatedUser) {
+        setSession(updatedUser, token, refresh);
+      }
       setProfileStatus('saved');
       setTimeout(() => setProfileStatus('idle'), 3000);
     } catch (err) {
-      // Fallback: update local user session store directly if backend server is unreachable
       if (user) {
         const parts = (name || user.firstName).trim().split(' ');
         const first = parts[0] || user.firstName;
@@ -56,17 +56,14 @@ export default function Settings() {
     setPasswordStatus('saving');
     setPasswordError(null);
     try {
-      await apiClient.put('/auth/password', { currentPassword, newPassword });
+      await authApi.changePassword({ currentPassword, newPassword });
       setPasswordStatus('saved');
       setCurrentPassword('');
       setNewPassword('');
       setTimeout(() => setPasswordStatus('idle'), 3000);
     } catch (err) {
-      // Fallback for local session mode: acknowledge password update locally
-      setPasswordStatus('saved');
-      setCurrentPassword('');
-      setNewPassword('');
-      setTimeout(() => setPasswordStatus('idle'), 3000);
+      setPasswordStatus('error');
+      setPasswordError(getApiErrorMessage(err, 'Failed to update password.'));
     }
   };
 

@@ -39,7 +39,15 @@ export const authApi = {
   me: (): Promise<User> =>
     apiClient
       .get<ApiEnvelope<User>>('/auth/me')
-      .then((res) => res.data.data),
+      .then((res) => (res.data?.data ?? res.data) as User),
+
+  /**
+   * Update the authenticated user's profile.
+   */
+  updateProfile: (payload: { name?: string; email?: string }): Promise<User> =>
+    apiClient
+      .put<ApiEnvelope<User>>('/auth/profile', payload)
+      .then((res) => (res.data?.data ?? res.data) as User),
 
   /**
    * Silently refresh the access token using the httpOnly refresh-token cookie
@@ -49,7 +57,7 @@ export const authApi = {
   refresh: (refreshToken?: string | null): Promise<{ accessToken: string }> =>
     apiClient
       .post<ApiEnvelope<{ accessToken: string }>>('/auth/refresh', { refreshToken })
-      .then((res) => res.data.data),
+      .then((res) => (res.data?.data ?? res.data) as { accessToken: string }),
 
   /**
    * Revoke the current session.
@@ -87,7 +95,7 @@ export const authApi = {
   register: (payload: RegisterPayload): Promise<User> =>
     apiClient
       .post<ApiEnvelope<User>>('/auth/register', payload)
-      .then((res) => res.data.data),
+      .then((res) => (res.data?.data ?? res.data) as User),
 
   /**
    * Resend an OTP for email verification or password reset.

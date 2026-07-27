@@ -46,7 +46,8 @@ export const modelApi = {
       mimeType: file.type || 'application/octet-stream',
     });
 
-    const { uploadSessionId, presignedUrl, isMultipart, presignedParts } = initRes.data.data;
+    const initData = initRes.data?.data ?? (initRes.data as any);
+    const { uploadSessionId, presignedUrl, isMultipart, presignedParts } = initData;
 
     // 2. Perform file upload content transfer
     if (presignedUrl) {
@@ -73,7 +74,7 @@ export const modelApi = {
         modelName: file.name.replace(/\.[^.]+$/, ''),
       });
 
-      const data = completeRes.data.data as any;
+      const data = (completeRes.data?.data ?? completeRes.data) as any;
       return {
         ...data,
         id: data.id || data.modelId || data._id,
@@ -119,14 +120,20 @@ export const modelApi = {
         partLoadedMap[i] = chunk.size;
         notifyOverallProgress();
 
-        const rawETag =
-          (partRes.headers && (partRes.headers.etag || partRes.headers.ETag || partRes.headers['etag'] || partRes.headers['ETag'])) ||
-          'local-mock-etag';
-        const eTag = String(rawETag).replace(/"/g, '');
+        const headerETag =
+          (typeof partRes.headers?.get === 'function'
+            ? partRes.headers.get('etag') || partRes.headers.get('ETag')
+            : null) ||
+          partRes.headers?.etag ||
+          partRes.headers?.ETag ||
+          partRes.headers?.['etag'] ||
+          partRes.headers?.['ETag'];
+        const rawETag = headerETag || 'local-mock-etag';
+        const eTag = String(rawETag).replace(/"/g, '').trim();
 
         uploadedParts.push({
           partNumber: part.partNumber,
-          eTag: eTag.replace(/"/g, ''),
+          eTag,
         });
       }
 
@@ -148,7 +155,7 @@ export const modelApi = {
         modelName: file.name.replace(/\.[^.]+$/, ''),
       });
 
-      const data = completeRes.data.data as any;
+      const data = (completeRes.data?.data ?? completeRes.data) as any;
       return {
         ...data,
         id: data.id || data.modelId || data._id,
@@ -176,7 +183,7 @@ export const modelApi = {
         onUploadProgress,
       });
 
-      const data = streamRes.data.data as any;
+      const data = (streamRes.data?.data ?? streamRes.data) as any;
       return {
         ...data,
         id: data.id || data.modelId || data._id,
@@ -191,7 +198,7 @@ export const modelApi = {
    */
   getModel: async (databaseModelId: string) => {
     const res = await apiClient.get<{ success: boolean; data: any }>(`/models/${databaseModelId}`);
-    const data = res.data.data;
+    const data = res.data?.data ?? res.data ?? {};
     return {
       ...data,
       modelUrl: data.presignedUrl || data.publicUrl || data.modelUrl,
