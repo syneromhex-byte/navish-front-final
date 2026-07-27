@@ -24,7 +24,10 @@ apiClient.interceptors.request.use((config) => {
   const isRefreshEndpoint = url.includes('/auth/refresh');
   const accessToken = useUserStore.getState().accessToken;
 
-  if (accessToken && !isRefreshEndpoint && !isPresignedS3Url) {
+  if (isPresignedS3Url) {
+    delete config.headers['Authorization'];
+    delete config.headers['authorization'];
+  } else if (accessToken && !isRefreshEndpoint) {
     config.headers.set('Authorization', `Bearer ${accessToken}`);
   }
   return config;
