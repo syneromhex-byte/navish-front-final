@@ -107,7 +107,7 @@ export const modelApi = {
 
         const partRes = await axios.put(part.presignedUrl, chunk, {
           headers: {
-            'Content-Type': file.type || 'application/octet-stream',
+            'Content-Type': 'application/octet-stream',
           },
           timeout: 0,
           onUploadProgress: (pEvent) => {
@@ -119,7 +119,10 @@ export const modelApi = {
         partLoadedMap[i] = chunk.size;
         notifyOverallProgress();
 
-        const eTag = partRes.headers.etag || 'local-mock-etag';
+        const rawETag =
+          (partRes.headers && (partRes.headers.etag || partRes.headers.ETag || partRes.headers['etag'] || partRes.headers['ETag'])) ||
+          'local-mock-etag';
+        const eTag = String(rawETag).replace(/"/g, '');
 
         uploadedParts.push({
           partNumber: part.partNumber,
