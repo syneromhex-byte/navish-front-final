@@ -76,7 +76,7 @@ export const modelApi = {
       const data = completeRes.data.data as any;
       return {
         ...data,
-        modelUrl: data.modelUrl || data.publicUrl,
+        modelUrl: data.presignedUrl || data.modelUrl || data.publicUrl,
       };
     } else if (isMultipart && presignedParts) {
       // S3 Multipart chunked upload
@@ -130,6 +130,7 @@ export const modelApi = {
         success: boolean;
         data: {
           modelUrl: string;
+          presignedUrl?: string;
           originalSize?: number;
           optimizedSize?: number;
           thumbnailUrl?: string;
@@ -143,7 +144,7 @@ export const modelApi = {
       const data = completeRes.data.data as any;
       return {
         ...data,
-        modelUrl: data.modelUrl || data.publicUrl,
+        modelUrl: data.presignedUrl || data.modelUrl || data.publicUrl,
       };
     } else {
       // Fallback: Direct stream to backend router
@@ -151,6 +152,7 @@ export const modelApi = {
         success: boolean;
         data: {
           modelUrl: string;
+          presignedUrl?: string;
           originalSize?: number;
           optimizedSize?: number;
           thumbnailUrl?: string;
@@ -166,8 +168,31 @@ export const modelApi = {
       const data = streamRes.data.data as any;
       return {
         ...data,
-        modelUrl: data.modelUrl || data.publicUrl,
+        modelUrl: data.presignedUrl || data.modelUrl || data.publicUrl,
       };
     }
+  },
+
+  /**
+   * Fetches model metadata and its presigned GET URL by ID.
+   */
+  getModel: async (id: string) => {
+    const res = await apiClient.get<{ success: boolean; data: any }>(`/models/${id}`);
+    const data = res.data.data;
+    return {
+      ...data,
+      modelUrl: data.presignedUrl || data.publicUrl || data.modelUrl,
+    };
+  },
+
+  /**
+   * Fetches a fresh presigned GET URL for a specific model ID.
+   */
+  getPresignedUrl: async (id: string, expiresIn?: number) => {
+    const res = await apiClient.get<{ success: boolean; data: { presignedUrl: string } }>(
+      `/models/${id}/presigned-url`,
+      { params: { expiresIn } },
+    );
+    return res.data.data.presignedUrl;
   },
 };

@@ -103,15 +103,37 @@ export class ModelLoader {
   ): Promise<LoadedModelMetadata> {
     const safeUrl = url || '';
     const isBlob = safeUrl.startsWith('blob:');
-    const cleanUrl = safeUrl.split('?')[0]?.split('#')[0] || safeUrl;
-    const urlParts = cleanUrl.split('/');
-    const rawFileName = urlParts[urlParts.length - 1] || 'model.glb';
-    const fileName = isBlob ? 'model.glb' : rawFileName;
+    
+    let rootUrl = '';
+    let sceneFilename = 'model.glb';
+    let fileName = 'model.glb';
+    let rawFileName = 'model.glb';
+
+    if (isBlob) {
+      rootUrl = safeUrl;
+      sceneFilename = '.glb';
+      fileName = 'model.glb';
+    } else {
+      const queryIndex = safeUrl.indexOf('?');
+      const queryString = queryIndex !== -1 ? safeUrl.slice(queryIndex) : '';
+      const cleanUrl = queryIndex !== -1 ? safeUrl.slice(0, queryIndex) : safeUrl;
+      
+      const lastSlash = cleanUrl.lastIndexOf('/');
+      if (lastSlash !== -1) {
+        rootUrl = cleanUrl.slice(0, lastSlash + 1);
+        rawFileName = cleanUrl.slice(lastSlash + 1) || 'model.glb';
+      } else {
+        rootUrl = '';
+        rawFileName = cleanUrl || 'model.glb';
+      }
+      
+      fileName = rawFileName;
+      sceneFilename = rawFileName + queryString;
+    }
+
     const format = isBlob ? 'glb' : detectFormat(fileName);
     this.assertBrowserLoadable(format);
 
-    const rootUrl = isBlob ? safeUrl : safeUrl.slice(0, safeUrl.length - fileName.length);
-    const sceneFilename = isBlob ? '.glb' : fileName;
     const result = await SceneLoader.ImportMeshAsync(null, rootUrl, sceneFilename, this.scene, (event) =>
       this.reportProgress(event, onProgress),
     );
