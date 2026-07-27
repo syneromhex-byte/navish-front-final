@@ -9,7 +9,7 @@ import { projectApi } from '@services/projectApi';
 import { modelApi } from '@services/modelApi';
 import { ROUTES } from '@constants/routes';
 import { formatBytes, formatRelativeDate } from '@utils/format';
-import { resolveServerUrl } from '@utils/resolveServerUrl';
+import { getAuthorizedModelUrl, resolveServerUrl } from '@utils/resolveServerUrl';
 import { pickPrimaryModelFile } from '@utils/pickPrimaryModelFile';
 import { PROJECT_CATEGORIES, categoryLabel } from '@constants/projectCategories';
 import type { Project, ProjectCategory, ProjectStatus, UploadProgress, ProcessingStep, ModelFormat } from '@app-types/project.types';
@@ -335,11 +335,12 @@ export default function DashboardProjects() {
     }
   };
 
-  const handleDownloadModel = (project: Project) => {
+  const handleDownloadModel = async (project: Project) => {
     if (!project.modelUrl) return;
+    const downloadUrl = (await getAuthorizedModelUrl(project.modelUrl, project.id)) || project.modelUrl;
     // Create direct anchor element and download the linked GLB/model
     const link = document.createElement('a');
-    link.href = project.modelUrl;
+    link.href = downloadUrl;
     link.download = `${project.name.replace(/\s+/g, '_')}_model.${project.modelFormat}`;
     document.body.appendChild(link);
     link.click();

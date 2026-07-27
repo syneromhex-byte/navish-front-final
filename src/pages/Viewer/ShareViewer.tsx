@@ -10,6 +10,8 @@ import { projectApi } from '@services/projectApi';
 import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
 import { getApiErrorMessage } from '@utils/apiError';
 
+import { getAuthorizedModelUrl } from '@utils/resolveServerUrl';
+
 const CAMERA_MODES: { value: CameraMode; label: string }[] = [
   { value: 'orbit', label: 'Orbit' },
   { value: 'walk', label: 'Walk' },
@@ -39,7 +41,8 @@ export default function ShareViewer() {
           return;
         }
 
-        const metadata = await engineManager.modelLoader.loadFromUrl(project.modelUrl);
+        const modelUrlToLoad = (await getAuthorizedModelUrl(project.modelUrl, project.id)) || project.modelUrl;
+        const metadata = await engineManager.modelLoader.loadFromUrl(modelUrlToLoad);
         const root = engineManager.modelLoader.getRoot(metadata.rootId);
         if (root) {
           const { center, radius } = autoCategorizeModel(engineManager, root);

@@ -4,7 +4,7 @@ import type { ObjectPanelEntry } from '@components/editor/ObjectPanel/ObjectPane
 import type { Project } from '@app-types/project.types';
 import type { LoadedModelMetadata } from '@app-types/viewer.types';
 import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
-import { resolveServerUrl } from '@utils/resolveServerUrl';
+import { getAuthorizedModelUrl, resolveServerUrl } from '@utils/resolveServerUrl';
 
 export interface ProjectSceneResult {
   entries: ObjectPanelEntry[];
@@ -59,7 +59,7 @@ export async function loadProjectScene(
       };
     }
 
-    const resolvedUrl = resolveServerUrl(project.modelUrl);
+    const resolvedUrl = (await getAuthorizedModelUrl(project.modelUrl, project.id)) || resolveServerUrl(project.modelUrl);
     if (!resolvedUrl || resolvedUrl.includes('example.com') || resolvedUrl.startsWith('blob:')) {
       return {
         entries: [],

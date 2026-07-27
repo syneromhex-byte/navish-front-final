@@ -189,10 +189,14 @@ export const modelApi = {
    * Fetches a fresh presigned GET URL for a specific model ID.
    */
   getPresignedUrl: async (id: string, expiresIn?: number) => {
-    const res = await apiClient.get<{ success: boolean; data: { presignedUrl: string } }>(
+    const res = await apiClient.get<any>(
       `/models/${id}/presigned-url`,
       { params: { expiresIn } },
     );
-    return res.data.data.presignedUrl;
+    const data = res.data;
+    if (data?.data?.presignedUrl) return data.data.presignedUrl;
+    if (data?.presignedUrl) return data.presignedUrl;
+    if (typeof data?.data === 'string') return data.data;
+    return undefined;
   },
 };
