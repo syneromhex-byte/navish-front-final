@@ -39,12 +39,14 @@ export interface Project {
   sharedAt?: string;
   /** Direct URL to the real .glb/.gltf/.obj model — when set, the viewer loads this instead of showing an empty room. */
   modelUrl?: string;
+  fileUrl?: string;
   location?: string;
   rooms?: string[];
   uploadedBy?: string;
   modelStatus?: ModelStatus;
   /** Primary key of the model record in PostgreSQL / MongoDB database */
   modelId?: string;
+  model_id?: string;
 }
 
 export interface Client {

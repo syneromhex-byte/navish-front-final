@@ -336,9 +336,10 @@ export default function DashboardProjects() {
   };
 
   const handleDownloadModel = async (project: Project) => {
-    if (!project.modelUrl) return;
-    const databaseModelId = project.modelId || project.id;
-    const downloadUrl = (await getAuthorizedModelUrl(project.modelUrl, databaseModelId)) || project.modelUrl;
+    const rawUrl = project.fileUrl || project.modelUrl;
+    if (!rawUrl) return;
+    const databaseModelId = project.modelId || project.model_id;
+    const downloadUrl = (await getAuthorizedModelUrl(rawUrl, databaseModelId)) || rawUrl;
     // Create direct anchor element and download the linked GLB/model
     const link = document.createElement('a');
     link.href = downloadUrl;

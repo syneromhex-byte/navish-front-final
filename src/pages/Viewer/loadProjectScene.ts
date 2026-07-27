@@ -52,15 +52,16 @@ export async function loadProjectScene(
       return await finishLoadedModel(engineManager, metadata);
     }
 
-    if (!project?.modelUrl || project.modelUrl.startsWith('blob:')) {
+    const rawUrl = project?.fileUrl || project?.modelUrl;
+    if (!rawUrl || rawUrl.startsWith('blob:')) {
       return {
         entries: [],
         error: null,
       };
     }
 
-    const databaseModelId = project.modelId || project.id;
-    const resolvedUrl = (await getAuthorizedModelUrl(project.modelUrl, databaseModelId)) || resolveServerUrl(project.modelUrl);
+    const databaseModelId = project?.modelId || project?.model_id;
+    const resolvedUrl = (await getAuthorizedModelUrl(rawUrl, databaseModelId)) || resolveServerUrl(rawUrl);
     if (!resolvedUrl || resolvedUrl.includes('example.com') || resolvedUrl.startsWith('blob:')) {
       return {
         entries: [],

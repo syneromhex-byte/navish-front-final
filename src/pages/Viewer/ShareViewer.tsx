@@ -36,13 +36,14 @@ export default function ShareViewer() {
 
       try {
         const project = await projectApi.getByShareToken(shareToken);
-        if (!project || !project.modelUrl) {
+        const rawUrl = project?.fileUrl || project?.modelUrl;
+        if (!project || !rawUrl) {
           setError('No 3D model file has been uploaded for this shared project yet.');
           return;
         }
 
-        const databaseModelId = project.modelId || project.id;
-        const modelUrlToLoad = (await getAuthorizedModelUrl(project.modelUrl, databaseModelId)) || project.modelUrl;
+        const databaseModelId = project.modelId || project.model_id;
+        const modelUrlToLoad = (await getAuthorizedModelUrl(rawUrl, databaseModelId)) || rawUrl;
         const metadata = await engineManager.modelLoader.loadFromUrl(modelUrlToLoad);
         const root = engineManager.modelLoader.getRoot(metadata.rootId);
         if (root) {
