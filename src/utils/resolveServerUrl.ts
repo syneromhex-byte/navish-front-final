@@ -2,13 +2,18 @@ import { modelApi } from '@services/modelApi';
 
 export function resolveServerUrl(url: string | undefined): string | undefined {
   if (!url) return url;
+  const cleanUrl =
+    url.startsWith('blob:') || url.startsWith('data:')
+      ? url
+      : url.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
+
   if (
-    url.startsWith('http://') ||
-    url.startsWith('https://') ||
-    url.startsWith('blob:') ||
-    url.startsWith('data:')
+    cleanUrl.startsWith('http://') ||
+    cleanUrl.startsWith('https://') ||
+    cleanUrl.startsWith('blob:') ||
+    cleanUrl.startsWith('data:')
   ) {
-    return url;
+    return cleanUrl;
   }
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://navish-arc.site/api/v1';
   let origin = apiBase;
@@ -17,7 +22,7 @@ export function resolveServerUrl(url: string | undefined): string | undefined {
   } catch {
     // Fallback if apiBase is just a path or invalid URL
   }
-  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+  return `${origin}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
 }
 
 /**
@@ -35,13 +40,13 @@ export async function getAuthorizedModelUrl(
     return rawUrl;
   }
 
-  // If URL already contains S3 presigned query parameters, return as-is
+  // If URL already contains S3 presigned query parameters, sanitize and return
   if (
     rawUrl.includes('X-Amz-Algorithm') ||
     rawUrl.includes('X-Amz-Signature') ||
     rawUrl.includes('Signature=')
   ) {
-    return rawUrl;
+    return rawUrl.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
   }
 
   if (!databaseModelId || typeof databaseModelId !== 'string' || databaseModelId.trim() === '') {
@@ -57,7 +62,7 @@ export async function getAuthorizedModelUrl(
     if (!presignedUrl) {
       throw new Error(`API responded, but presignedUrl was missing or empty for databaseModelId: ${databaseModelId}`);
     }
-    return presignedUrl;
+    return presignedUrl.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
   } catch (err) {
     console.error('❌ Failed to fetch presigned URL for databaseModelId:', databaseModelId, err);
     throw err;

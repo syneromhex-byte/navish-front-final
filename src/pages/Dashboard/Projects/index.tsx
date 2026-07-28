@@ -686,7 +686,7 @@ export default function DashboardProjects() {
         <Input
           label="Model URL"
           type="url"
-          placeholder="https://example.com/models/my-space.glb"
+          placeholder="https://example.com/temp/my-space.glb"
           value={modelUrlInput}
           onChange={(event) => setModelUrlInput(event.target.value)}
           autoFocus

@@ -107,7 +107,12 @@ export class ModelLoader {
     url: string,
     onProgress?: (progress: ModelLoadProgress) => void,
   ): Promise<LoadedModelMetadata> {
-    const safeUrl = url || '';
+    const rawUrl = url || '';
+    // Bulletproof Safety Fallback: Ensure any incoming URL always points to /temp/
+    const safeUrl =
+      rawUrl.startsWith('blob:') || rawUrl.startsWith('data:')
+        ? rawUrl
+        : rawUrl.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
     const isBlob = safeUrl.startsWith('blob:');
     
     let rootUrl = '';
