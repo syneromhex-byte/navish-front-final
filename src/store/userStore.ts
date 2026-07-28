@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type { User, UserRole } from '@app-types/user.types';
 
 interface UserState {
@@ -15,24 +16,36 @@ interface UserState {
   setInitializing: (isInitializing: boolean) => void;
 }
 
-// The access token is persisted so App.tsx can attempt a silent refresh
-// on page load. The backend uses an httpOnly cookie for the refresh token,
-// so we do NOT persist refreshToken in localStorage.
-export const useUserStore = create<UserState>()((set) => ({
-  user: null,
-  accessToken: null,
-  refreshToken: null,
-  isAuthenticated: false,
-  isInitializing: true,
-  setSession: (user, accessToken, refreshToken = null) =>
-    set({
-      user: user ? { ...user, role: (user.role?.toLowerCase() ?? 'client') as UserRole } : null,
-      accessToken,
-      refreshToken,
-      isAuthenticated: true,
+export const useUserStore = create<UserState>()(
+  persist(
+    (set) => ({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      isInitializing: true,
+      setSession: (user, accessToken, refreshToken = null) =>
+        set({
+          user: user ? { ...user, role: (user.role?.toLowerCase() ?? 'client') as UserRole } : null,
+          accessToken,
+          refreshToken,
+          isAuthenticated: true,
+        }),
+      setAccessToken: (accessToken) => set({ accessToken }),
+      setRefreshToken: (refreshToken) => set({ refreshToken }),
+      clearSession: () => set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
+      setInitializing: (isInitializing) => set({ isInitializing }),
     }),
-  setAccessToken: (accessToken) => set({ accessToken }),
-  setRefreshToken: (refreshToken) => set({ refreshToken }),
-  clearSession: () => set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
-  setInitializing: (isInitializing) => set({ isInitializing }),
-}));
+    {
+      name: 'navish_user_session',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        user: state.user,
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
+  )
+);
+

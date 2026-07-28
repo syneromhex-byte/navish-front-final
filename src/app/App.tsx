@@ -44,29 +44,36 @@ function App() {
   useEffect(() => {
     let isMounted = true;
 
-    const { accessToken, isAuthenticated } = useUserStore.getState();
+    const { accessToken, isAuthenticated, user, setSession } = useUserStore.getState();
 
-    // If we have a valid, unexpired access token, we can bypass silent refresh.
-    if (isAuthenticated && accessToken && !isTokenExpired(accessToken)) {
+    // If we have a valid, unexpired access token and user profile, session is active!
+    if (isAuthenticated && user && accessToken && !isTokenExpired(accessToken)) {
       setInitializing(false);
       return;
     }
 
-    // If there is no previous session, don't attempt silent refresh.
-    if (!isAuthenticated) {
-      setInitializing(false);
-      return;
-    }
-
-    // Attempt silent refresh using HttpOnly cookie
+    // Attempt silent refresh using HttpOnly cookie / stored refresh token
     authApi
       .refresh()
-      .then(({ accessToken: newToken }) => {
-        if (isMounted) setAccessToken(newToken);
+      .then(async ({ accessToken: newToken }) => {
+        if (!isMounted) return;
+        setAccessToken(newToken);
+        try {
+          const freshUser = await authApi.me();
+          if (isMounted) {
+            setSession(freshUser, newToken);
+          }
+        } catch {
+          // Profile fetch failed, but token is fresh
+        }
       })
       .catch(() => {
-        // Refresh failed — clear stale session so user sees the login page.
-        if (isMounted) clearSession();
+        // If token is missing/invalid and refresh failed, clear state only if token was expired or absent
+        if (isMounted) {
+          if (!accessToken || isTokenExpired(accessToken)) {
+            clearSession();
+          }
+        }
       })
       .finally(() => {
         if (isMounted) setInitializing(false);
