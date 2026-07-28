@@ -48,8 +48,14 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    allowedHosts: ['navish-arc.site', '.navish-arc.site'],
+    // host: true, // optional: binds to 0.0.0.0
+    // port: 4173,
+  },
   server: {
     port: 5173,
+    allowedHosts: ['navish-arc.site', '.navish-arc.site'],
     host: true,
   },
   test: {
