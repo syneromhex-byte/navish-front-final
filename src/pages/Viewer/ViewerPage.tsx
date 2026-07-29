@@ -23,6 +23,7 @@ import { useEditorStore } from '@store/editorStore';
 import { useViewerStore } from '@store/viewerStore';
 import { useProjectStore } from '@store/projectStore';
 import { usePortfolioStore } from '@store/portfolioStore';
+import { portfolioApi } from '@services/portfolio/portfolioApi';
 import { useLocalModelStore } from '@store/localModelStore';
 import { ROUTES } from '@constants/routes';
 import type { EngineStats } from '@app-types/viewer.types';
@@ -106,7 +107,21 @@ export default function ViewerPage() {
           clientName: 'Portfolio Item',
         } as unknown as Project);
       } else {
-        setModelError('Portfolio item not found.');
+        portfolioApi
+          .get(projectId)
+          .then((pItem) => {
+            setProject({
+              id: pItem.id,
+              name: pItem.title,
+              modelUrl: pItem.modelUrl,
+              status: 'APPROVED',
+              sizeBytes: pItem.sizeBytes,
+              clientName: 'Portfolio Item',
+            } as unknown as Project);
+          })
+          .catch(() => {
+            setModelError('Portfolio item not found.');
+          });
       }
       return;
     }

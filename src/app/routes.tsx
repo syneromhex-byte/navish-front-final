@@ -108,17 +108,12 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // ─── Viewer (any authenticated user) ─────────────────────────────────────
+  // ─── Viewer (publicly accessible) ────────────────────────────────────────
   {
-    element: <ProtectedRoute />,
+    element: <ViewerLayout />,
     children: [
-      {
-        element: <ViewerLayout />,
-        children: [
-          { path: '/viewer/:projectId', element: withSuspense(<ViewerPage />) },
-          { path: '/viewer/:projectId/vr', element: withSuspense(<VRPage />) },
-        ],
-      },
+      { path: '/viewer/:projectId', element: withSuspense(<ViewerPage />) },
+      { path: '/viewer/:projectId/vr', element: withSuspense(<VRPage />) },
     ],
   },
 

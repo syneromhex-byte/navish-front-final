@@ -18,9 +18,10 @@ const GRADIENTS = [
 
 export function ProjectCard({ item, index = 0 }: ProjectCardProps) {
   const gradient = GRADIENTS[index % GRADIENTS.length];
+  const targetRoute = item.id ? ROUTES.viewer(item.id) : (item.vrUrl || '#');
 
   return (
-    <Link to={item.vrUrl || (item.modelUrl ? ROUTES.viewer(item.id) : '#')} className="group relative block overflow-hidden rounded-2xl">
+    <Link to={targetRoute} className="group relative block overflow-hidden rounded-2xl">
       <div className={`aspect-[4/5] w-full bg-gradient-to-br ${gradient} relative`}>
         {item.thumbnailUrl ? (
           <img
