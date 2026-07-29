@@ -10,7 +10,7 @@ export async function getPublicPortfolio(category?: string): Promise<PortfolioIt
     : `${BASE_URL}/portfolio`;
 
   // Do NOT pass Bearer Token here; it's a public request
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Failed to fetch public portfolio: ${response.status}`);
   }
