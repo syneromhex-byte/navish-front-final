@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { ProjectCard } from '@components/cards/ProjectCard';
 import { usePortfolioStore } from '@store/portfolioStore';
-import { portfolioApi } from '@services/portfolio/portfolioApi';
+import { getPublicPortfolio } from '@services/portfolio/portfolioApi';
 
 const SHOWCASE_CATEGORIES = ['Residential', 'Commercial', 'Interior', 'Hospitality', 'Landscape'];
 const CATEGORY_FILTERS = ['All', ...SHOWCASE_CATEGORIES];
@@ -11,8 +11,7 @@ export default function Portfolio() {
   const items = usePortfolioStore((state) => state.items);
 
   useEffect(() => {
-    portfolioApi
-      .list()
+    getPublicPortfolio(activeCategory === 'All' ? undefined : activeCategory)
       .then((remoteItems) => {
         if (Array.isArray(remoteItems) && remoteItems.length > 0) {
           usePortfolioStore.setState({ items: remoteItems });
@@ -21,7 +20,7 @@ export default function Portfolio() {
       .catch(() => {
         // Fallback to existing store items
       });
-  }, []);
+  }, [activeCategory]);
 
   const publicItems = useMemo(() => items.filter((item) => item.isPublic !== false), [items]);
 
