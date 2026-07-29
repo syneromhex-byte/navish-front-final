@@ -16,7 +16,6 @@ function profileHref(role?: string): string {
 const NAV_LINKS = [
   { label: 'Home', to: ROUTES.home },
   { label: 'Portfolio', to: ROUTES.portfolio },
-  { label: 'Projects', to: ROUTES.projects },
   { label: 'Services', to: ROUTES.services },
   { label: 'Contact', to: ROUTES.contact },
 ];
