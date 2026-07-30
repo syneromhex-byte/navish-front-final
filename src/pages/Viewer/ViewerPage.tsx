@@ -28,6 +28,7 @@ import { useLocalModelStore } from '@store/localModelStore';
 import { ROUTES } from '@constants/routes';
 import type { EngineStats } from '@app-types/viewer.types';
 import type { Project } from '@app-types/project.types';
+import type { Vector3 } from '@babylonjs/core';
 import { loadProjectScene } from './loadProjectScene';
 
 export default function ViewerPage() {
@@ -38,6 +39,7 @@ export default function ViewerPage() {
 
   const pendingLocalModel = useLocalModelStore((state) => state.pending);
   const engineManagerRef = useRef<EngineManager | null>(null);
+  const initialBoundsRef = useRef<{ center: Vector3; radius: number } | null>(null);
   const [stats, setStats] = useState<EngineStats>({ fps: 0, drawCalls: 0, activeMeshes: 0 });
   const [objects, setObjects] = useState<ObjectPanelEntry[]>([]);
   const [modelError, setModelError] = useState<string | null>(null);
@@ -160,9 +162,12 @@ export default function ViewerPage() {
       project,
       localFile,
       matchingLocalModel?.siblingFiles,
-    ).then(({ entries, error }) => {
+    ).then(({ entries, error, center, radius }) => {
       setObjects(entries);
       setModelError(error);
+      if (center && radius) {
+        initialBoundsRef.current = { center, radius };
+      }
       setIsSceneLoading(false);
     });
   }, [engineManager, project, projectId, pendingLocalModel]);
@@ -179,11 +184,14 @@ export default function ViewerPage() {
     setIsUploading(true);
 
     try {
-      const { entries, error } = await loadProjectScene(engineManager, project, file);
+      const { entries, error, center, radius } = await loadProjectScene(engineManager, project, file);
       if (error) {
         setModelError(error);
       } else {
         setObjects(entries);
+        if (center && radius) {
+          initialBoundsRef.current = { center, radius };
+        }
       }
 
       const uploaded = await projectApi.uploadModel(file);
@@ -277,12 +285,85 @@ export default function ViewerPage() {
     [selectedId],
   );
 
+  const handleUploadTextureFile = useCallback(
+    (file: File) => {
+      const engineManager = engineManagerRef.current;
+      const mesh = selectedId ? engineManager?.objectManager.getMesh(selectedId) : undefined;
+      if (!engineManager || !mesh) return;
+      const texture = engineManager.textureManager.loadFromFile(file);
+      engineManager.materialManager.applyTexture(mesh, 'albedo', texture);
+      setHasTexture(true);
+      setMaterialProperties(engineManager.materialManager.getProperties(mesh));
+    },
+    [selectedId],
+  );
+
+  const handleTextureTilingChange = useCallback(
+    (uScale: number, vScale: number) => {
+      const engineManager = engineManagerRef.current;
+      const mesh = selectedId ? engineManager?.objectManager.getMesh(selectedId) : undefined;
+      if (!engineManager || !mesh) return;
+      const mat = mesh.material as any;
+      const texture = mat?.albedoTexture || mat?.diffuseTexture;
+      if (texture) {
+        engineManager.textureManager.setTiling(texture, uScale, vScale);
+      }
+    },
+    [selectedId],
+  );
+
   const handleClearTexture = useCallback(() => {
     const engineManager = engineManagerRef.current;
     const mesh = selectedId ? engineManager?.objectManager.getMesh(selectedId) : undefined;
     if (!engineManager || !mesh) return;
     engineManager.materialManager.applyTexture(mesh, 'albedo', null);
     setHasTexture(false);
+  }, [selectedId]);
+
+  const handleResetModel = useCallback(() => {
+    const engineManager = engineManagerRef.current;
+    if (!engineManager) return;
+
+    // 1. Reset all mesh materials, textures, and transforms to initial snapshot
+    engineManager.objectManager.resetAllObjects();
+
+    // 2. Re-frame camera to initial center & radius
+    if (initialBoundsRef.current) {
+      const { center, radius } = initialBoundsRef.current;
+      engineManager.cameraManager.frameBounds(center, radius);
+    }
+
+    // 3. Reset lighting & environment settings
+    setSunAzimuth(225);
+    setSunElevation(50);
+    setSunIntensity(2.2);
+    setAmbientIntensity(0.6);
+    setExposure(1);
+    setShadowQuality('medium');
+    setTurbidity(10);
+    setLuminance(1);
+    setFogEnabled(false);
+    setFogDensity(0.01);
+
+    engineManager.lightManager.setSunPosition(225, 50);
+    engineManager.lightManager.setSunIntensity(2.2);
+    engineManager.lightManager.setAmbientIntensity(0.6);
+    engineManager.sceneManager.setExposure(1);
+    engineManager.lightManager.setShadowQuality('medium');
+    engineManager.environmentManager.setTurbidity(10);
+    engineManager.environmentManager.setLuminance(1);
+    engineManager.environmentManager.setFogMode('off');
+
+    // 4. Update UI states for current selection if any
+    if (selectedId) {
+      const mesh = engineManager.objectManager.getMesh(selectedId);
+      if (mesh) {
+        setMaterialProperties(engineManager.materialManager.getProperties(mesh));
+        const mat = mesh.material as any;
+        setHasTexture(mat ? !!(mat.albedoTexture || mat.diffuseTexture) : false);
+        setTransformValues(engineManager.transformManager.getTransform(mesh));
+      }
+    }
   }, [selectedId]);
 
   // Attach/detach the transform gizmo whenever the selection or active tool changes.
@@ -539,6 +620,8 @@ export default function ViewerPage() {
                   isEnabled={!!materialProperties}
                   hasTexture={hasTexture}
                   onApply={handleApplyTexture}
+                  onUploadFile={handleUploadTextureFile}
+                  onTilingChange={handleTextureTilingChange}
                   onClear={handleClearTexture}
                 />
               ),
@@ -601,6 +684,7 @@ export default function ViewerPage() {
         cameraMode={cameraMode}
         onCameraModeChange={handleCameraModeChange}
         onCameraDropdownOpenChange={setIsCameraDropdownOpen}
+        onResetModel={handleResetModel}
         vrHref={projectId ? ROUTES.viewerVr(projectId) : undefined}
       />
 

@@ -55,6 +55,15 @@ export class TextureManager {
     return texture;
   }
 
+  loadFromFile(file: File): Texture {
+    const objectUrl = URL.createObjectURL(file);
+    const texture = new Texture(objectUrl, this.scene, false, true);
+    texture.uScale = 1;
+    texture.vScale = 1;
+    this.urlCache.set(objectUrl, texture);
+    return texture;
+  }
+
   setTiling(texture: Texture, uScale: number, vScale: number): void {
     texture.uScale = uScale;
     texture.vScale = vScale;

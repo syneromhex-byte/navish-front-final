@@ -6,9 +6,13 @@ import type { LoadedModelMetadata } from '@app-types/viewer.types';
 import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
 import { getAuthorizedModelUrl, resolveServerUrl } from '@utils/resolveServerUrl';
 
+import type { Vector3 } from '@babylonjs/core';
+
 export interface ProjectSceneResult {
   entries: ObjectPanelEntry[];
   error: string | null;
+  center?: Vector3;
+  radius?: number;
 }
 
 async function finishLoadedModel(
@@ -31,7 +35,8 @@ async function finishLoadedModel(
   const { entries, center, radius } = autoCategorizeModel(engineManager, root);
   engineManager.cameraManager.frameBounds(center, radius);
   engineManager.environmentManager.refreshReflections();
-  return { entries, error: null };
+  engineManager.objectManager.captureInitialState();
+  return { entries, error: null, center, radius };
 }
 
 

@@ -69,42 +69,47 @@ export class MaterialManager {
   }
 
   updateProperties(mesh: AbstractMesh, update: Partial<MaterialProperties>): void {
-    const mat = this.getOrCreatePBRMaterial(mesh);
-    if (update.albedoColor !== undefined) {
-      mat.albedoColor = Color3.FromHexString(update.albedoColor);
-    }
-    if (update.metallic !== undefined) {
-      mat.metallic = update.metallic;
-    }
-    if (update.roughness !== undefined) {
-      mat.roughness = update.roughness;
-    }
+    const targetMeshes = [mesh, ...mesh.getChildMeshes(false)];
+    targetMeshes.forEach((m) => {
+      const mat = this.getOrCreatePBRMaterial(m);
+      if (update.albedoColor !== undefined) {
+        mat.albedoColor = Color3.FromHexString(update.albedoColor);
+      }
+      if (update.metallic !== undefined) {
+        mat.metallic = update.metallic;
+      }
+      if (update.roughness !== undefined) {
+        mat.roughness = update.roughness;
+      }
+    });
   }
 
   applyTexture(mesh: AbstractMesh, channel: MaterialTextureChannel, texture: Texture | null): void {
-    const material = this.getOrCreatePBRMaterial(mesh);
-    switch (channel) {
-      case 'albedo':
-        material.albedoTexture?.dispose();
-        material.albedoTexture = texture;
-        if (texture) {
-          material.albedoColor = Color3.White();
-        }
-        break;
-      case 'bump':
-        material.bumpTexture?.dispose();
-        material.bumpTexture = texture;
-        break;
-      case 'metallicRoughness':
-        material.metallicTexture?.dispose();
-        material.metallicTexture = texture;
-        if (texture) {
-          material.useRoughnessFromMetallicTextureAlpha = false;
-          material.useRoughnessFromMetallicTextureGreen = true;
-          material.useMetallnessFromMetallicTextureBlue = true;
-        }
-        break;
-    }
+    const targetMeshes = [mesh, ...mesh.getChildMeshes(false)];
+    targetMeshes.forEach((m) => {
+      const material = this.getOrCreatePBRMaterial(m);
+      switch (channel) {
+        case 'albedo':
+          if (material.albedoTexture !== texture) {
+            material.albedoTexture = texture;
+          }
+          if (texture) {
+            material.albedoColor = Color3.White();
+          }
+          break;
+        case 'bump':
+          material.bumpTexture = texture;
+          break;
+        case 'metallicRoughness':
+          material.metallicTexture = texture;
+          if (texture) {
+            material.useRoughnessFromMetallicTextureAlpha = false;
+            material.useRoughnessFromMetallicTextureGreen = true;
+            material.useMetallnessFromMetallicTextureBlue = true;
+          }
+          break;
+      }
+    });
   }
 
   dispose(): void {

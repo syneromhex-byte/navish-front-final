@@ -10,6 +10,7 @@ export interface ToolbarProps {
   cameraMode: CameraMode;
   onCameraModeChange: (mode: CameraMode) => void;
   onCameraDropdownOpenChange?: (isOpen: boolean) => void;
+  onResetModel?: () => void;
   /** Hides the edit tools (Select/Move/Rotate/Scale), leaving only camera navigation — for viewers who can look but not modify the model. */
   readOnly?: boolean;
   /** Route to this model's VR page — shown as a button when set, so VR is reachable from any viewer (demo, linked, or locally-picked) without needing a separate project card link. */
@@ -37,6 +38,7 @@ export function Toolbar({
   cameraMode,
   onCameraModeChange,
   onCameraDropdownOpenChange,
+  onResetModel,
   readOnly = false,
   vrHref,
 }: ToolbarProps) {
@@ -93,6 +95,24 @@ export function Toolbar({
         onSelect={(value) => onCameraModeChange(value as CameraMode)}
         onOpenChange={onCameraDropdownOpenChange}
       />
+
+      {onResetModel && (
+        <>
+          <div className="mx-1 h-6 w-px bg-border-subtle" />
+          <button
+            type="button"
+            title="Reset Model to Original View"
+            onClick={onResetModel}
+            className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-medium text-text-secondary transition-colors hover:bg-white/[0.08] hover:text-text-primary hover:text-primary"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            Reset Model
+          </button>
+        </>
+      )}
 
       {vrHref && (
         <>
