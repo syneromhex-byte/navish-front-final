@@ -43,6 +43,7 @@ function App() {
 
   useEffect(() => {
     let isMounted = true;
+    sessionStorage.removeItem('chunk_reload_retry');
 
     const { accessToken, isAuthenticated, user, setSession } = useUserStore.getState();
 

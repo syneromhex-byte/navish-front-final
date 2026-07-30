@@ -6,6 +6,7 @@ import { usePortfolioStore } from '@store/portfolioStore';
 import type { PortfolioItem } from '@store/portfolioStore';
 import type { UploadProgress } from '@app-types/project.types';
 import { modelApi } from '@services/modelApi';
+import { portfolioApi } from '@services/portfolio/portfolioApi';
 import { formatBytes } from '@utils/format';
 import { ROUTES } from '@constants/routes';
 
@@ -167,35 +168,41 @@ export default function DashboardPortfolio() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) return;
 
+    const payload = {
+      title,
+      category,
+      description,
+      modelUrl: modelUrl.trim() || undefined,
+      thumbnailUrl: thumbnailUrl.trim() || undefined,
+      sizeBytes,
+      format,
+      isPublic,
+    };
+
     if (editingItem) {
-      updateItem(editingItem.id, {
-        title,
-        category,
-        description,
-        modelUrl: modelUrl.trim() || undefined,
-        thumbnailUrl: thumbnailUrl.trim() || undefined,
-        sizeBytes,
-        format,
-        isPublic,
-      });
+      updateItem(editingItem.id, payload);
+      await portfolioApi.update(editingItem.id, payload).catch(() => {});
     } else {
-      addItem({
-        title,
-        category,
-        description,
-        modelUrl: modelUrl.trim() || undefined,
-        thumbnailUrl: thumbnailUrl.trim() || undefined,
-        sizeBytes,
-        format,
-        isPublic,
-      });
+      const createdRemote = await portfolioApi.create(payload).catch(() => null);
+      if (createdRemote) {
+        usePortfolioStore.setState((state) => ({
+          items: [createdRemote, ...state.items.filter((i) => i.id !== createdRemote.id)],
+        }));
+      } else {
+        addItem(payload);
+      }
     }
 
     setIsModalOpen(false);
     resetForm();
+  };
+
+  const handleDelete = async (id: string) => {
+    removeItem(id);
+    await portfolioApi.remove(id).catch(() => {});
   };
 
   const filteredItems = items.filter((item) => {
@@ -321,7 +328,7 @@ export default function DashboardPortfolio() {
                     <Button variant="secondary" size="sm" onClick={() => handleOpenEditModal(item)}>
                       Edit
                     </Button>
-                    <Button variant="danger" size="sm" onClick={() => removeItem(item.id)}>
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(item.id)}>
                       Delete
                     </Button>
                   </div>

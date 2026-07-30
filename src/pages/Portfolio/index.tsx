@@ -11,15 +11,30 @@ export default function Portfolio() {
   const items = usePortfolioStore((state) => state.items);
 
   useEffect(() => {
-    getPublicPortfolio(activeCategory === 'All' ? undefined : activeCategory)
-      .then((remoteItems) => {
-        if (Array.isArray(remoteItems) && remoteItems.length > 0) {
-          usePortfolioStore.setState({ items: remoteItems });
-        }
-      })
-      .catch(() => {
-        // Fallback to existing store items
-      });
+    const fetchFresh = () => {
+      getPublicPortfolio(activeCategory === 'All' ? undefined : activeCategory)
+        .then((remoteItems) => {
+          if (Array.isArray(remoteItems) && remoteItems.length > 0) {
+            usePortfolioStore.setState((state) => {
+              const remoteMap = new Map(remoteItems.map((item) => [item.id, item]));
+              const localOnly = state.items.filter((item) => !remoteMap.has(item.id));
+              return { items: [...remoteItems, ...localOnly] };
+            });
+          }
+        })
+        .catch(() => {
+          // Fallback to existing store items
+        });
+    };
+
+    fetchFresh();
+    const interval = setInterval(fetchFresh, 30000);
+    window.addEventListener('focus', fetchFresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchFresh);
+    };
   }, [activeCategory]);
 
   const publicItems = useMemo(() => items.filter((item) => item.isPublic !== false), [items]);

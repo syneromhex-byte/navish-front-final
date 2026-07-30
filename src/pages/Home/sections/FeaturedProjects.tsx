@@ -1,12 +1,39 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ProjectCard } from '@components/cards/ProjectCard';
 import { usePortfolioStore } from '@store/portfolioStore';
+import { getPublicPortfolio } from '@services/portfolio/portfolioApi';
 import { ROUTES } from '@constants/routes';
 
 export function FeaturedProjects() {
   const items = usePortfolioStore((state) => state.items);
-  const featured = useMemo(() => items.filter((item) => item.isPublic).slice(0, 4), [items]);
+
+  useEffect(() => {
+    const fetchFresh = () => {
+      getPublicPortfolio()
+        .then((remoteItems) => {
+          if (Array.isArray(remoteItems) && remoteItems.length > 0) {
+            usePortfolioStore.setState((state) => {
+              const remoteMap = new Map(remoteItems.map((item) => [item.id, item]));
+              const localOnly = state.items.filter((item) => !remoteMap.has(item.id));
+              return { items: [...remoteItems, ...localOnly] };
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchFresh();
+    const interval = setInterval(fetchFresh, 30000);
+    window.addEventListener('focus', fetchFresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchFresh);
+    };
+  }, []);
+
+  const featured = useMemo(() => items.filter((item) => item.isPublic !== false).slice(0, 4), [items]);
 
   return (
     <section className="px-6 py-24 sm:py-32">

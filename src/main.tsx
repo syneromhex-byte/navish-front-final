@@ -11,7 +11,7 @@ function sanitizeAwsUrl(url: string): string {
 // 1. Intercept window.fetch
 const originalFetch = window.fetch;
 window.fetch = async function (input, init) {
-  let url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
+  const url = typeof input === 'string' ? input : input instanceof Request ? input.url : '';
   if (url) {
     const cleanedUrl = sanitizeAwsUrl(url);
     if (typeof input === 'string') {

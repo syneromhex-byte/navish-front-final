@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { usePortfolioStore } from '@store/portfolioStore';
+import { getPublicPortfolio } from '@services/portfolio/portfolioApi';
 import { ROUTES } from '@constants/routes';
 import { formatBytes } from '@utils/format';
 
@@ -11,7 +12,32 @@ export default function Projects() {
   const [activeCategory, setActiveCategory] = useState('All');
   const items = usePortfolioStore((state) => state.items);
 
-  const publicItems = useMemo(() => items.filter((item) => item.isPublic), [items]);
+  useEffect(() => {
+    const fetchFresh = () => {
+      getPublicPortfolio()
+        .then((remoteItems) => {
+          if (Array.isArray(remoteItems) && remoteItems.length > 0) {
+            usePortfolioStore.setState((state) => {
+              const remoteMap = new Map(remoteItems.map((item) => [item.id, item]));
+              const localOnly = state.items.filter((item) => !remoteMap.has(item.id));
+              return { items: [...remoteItems, ...localOnly] };
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchFresh();
+    const interval = setInterval(fetchFresh, 30000);
+    window.addEventListener('focus', fetchFresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', fetchFresh);
+    };
+  }, []);
+
+  const publicItems = useMemo(() => items.filter((item) => item.isPublic !== false), [items]);
 
   const filteredProjects =
     activeCategory === 'All'
