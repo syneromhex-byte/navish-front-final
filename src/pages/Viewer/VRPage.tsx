@@ -18,6 +18,7 @@ export default function VRPage() {
   const [teleportEnabled, setTeleportEnabled] = useState(true);
   const [isCheckingSupport, setIsCheckingSupport] = useState(true);
   const [modelError, setModelError] = useState<string | null>(null);
+  const [loadProgressPercent, setLoadProgressPercent] = useState<number | null>(null);
 
   const handleReady = useCallback(
     (engineManager: EngineManager) => {
@@ -30,9 +31,20 @@ export default function VRPage() {
           : undefined;
       const localFile = matchingLocalModel?.file;
 
-      loadProjectScene(engineManager, project, localFile, matchingLocalModel?.siblingFiles)
+      setIsCheckingSupport(true);
+
+      loadProjectScene(
+        engineManager,
+        project,
+        localFile,
+        matchingLocalModel?.siblingFiles,
+        (prog) => setLoadProgressPercent(prog.percent),
+      )
         .then(({ error }) => {
           setModelError(error);
+          // Set camera to Walk mode automatically so position starts inside interior room at eye level
+          engineManager.cameraManager.setMode('walk');
+
           const floorMeshes = engineManager.objectManager
             .getAll()
             .filter((entry) => entry.category === 'floor')
@@ -46,7 +58,13 @@ export default function VRPage() {
             engineManager.vrManager.onVRStateChange(setIsInVR);
           }
         })
-        .finally(() => setIsCheckingSupport(false));
+        .catch((err) => {
+          setModelError(err?.message || 'Failed to prepare VR scene.');
+        })
+        .finally(() => {
+          setIsCheckingSupport(false);
+          setLoadProgressPercent(null);
+        });
     },
     [project, projectId, pendingLocalModel],
   );
@@ -69,14 +87,21 @@ export default function VRPage() {
       <BabylonCanvas onReady={handleReady} />
 
       {modelError && (
-        <div className="glass-panel absolute left-1/2 top-4 max-w-md -translate-x-1/2 rounded-xl px-4 py-3 text-center text-sm text-primary">
+        <div className="glass-panel absolute left-1/2 top-4 z-50 max-w-md -translate-x-1/2 rounded-xl px-4 py-3 text-center text-sm text-primary">
           Could not load this model — {modelError}
         </div>
       )}
 
       {isCheckingSupport ? (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Loader label="Checking VR support…" />
+        <div className="absolute inset-0 flex items-center justify-center bg-surface-0/80 backdrop-blur-sm z-50">
+          <Loader
+            size="lg"
+            label={
+              loadProgressPercent != null
+                ? `Loading VR space… ${loadProgressPercent}%`
+                : 'Checking VR support…'
+            }
+          />
         </div>
       ) : (
         <VRControls

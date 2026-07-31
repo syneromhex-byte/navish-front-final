@@ -108,11 +108,7 @@ export class ModelLoader {
     onProgress?: (progress: ModelLoadProgress) => void,
   ): Promise<LoadedModelMetadata> {
     const rawUrl = url || '';
-    // Bulletproof Safety Fallback: Ensure any incoming URL always points to /temp/
-    const safeUrl =
-      rawUrl.startsWith('blob:') || rawUrl.startsWith('data:')
-        ? rawUrl
-        : rawUrl.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
+    const safeUrl = rawUrl;
     const isBlob = safeUrl.startsWith('blob:');
     
     let rootUrl = '';
@@ -172,12 +168,20 @@ export class ModelLoader {
     event: ISceneLoaderProgressEvent,
     onProgress?: (progress: ModelLoadProgress) => void,
   ): void {
-    if (!onProgress || !event.lengthComputable) return;
-    onProgress({
-      loaded: event.loaded,
-      total: event.total,
-      percent: Math.round((event.loaded / event.total) * 100),
-    });
+    if (!onProgress) return;
+    if (event.lengthComputable && event.total > 0) {
+      onProgress({
+        loaded: event.loaded,
+        total: event.total,
+        percent: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+      });
+    } else if (event.loaded > 0) {
+      onProgress({
+        loaded: event.loaded,
+        total: event.loaded,
+        percent: 90,
+      });
+    }
   }
 
   private finalizeImport(

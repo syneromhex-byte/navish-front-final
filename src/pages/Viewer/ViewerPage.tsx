@@ -92,6 +92,9 @@ export default function ViewerPage() {
     }
   }, [cameraMode]);
 
+  const [projectFetched, setProjectFetched] = useState(false);
+  const [loadProgressPercent, setLoadProgressPercent] = useState<number | null>(null);
+
   // Fetch project from API on mount
   useEffect(() => {
     if (!projectId) return;
@@ -123,8 +126,10 @@ export default function ViewerPage() {
           })
           .catch(() => {
             setModelError('Portfolio item not found.');
+            setIsSceneLoading(false);
           });
       }
+      setProjectFetched(true);
       return;
     }
 
@@ -141,6 +146,13 @@ export default function ViewerPage() {
         console.error('Failed to load project from API', err);
         const localProj = useProjectStore.getState().projects.find((p) => p.id === projectId);
         setProject(localProj);
+        if (!localProj) {
+          setModelError('Project not found or server is unreachable.');
+          setIsSceneLoading(false);
+        }
+      })
+      .finally(() => {
+        setProjectFetched(true);
       });
   }, [projectId]);
 
@@ -154,23 +166,38 @@ export default function ViewerPage() {
         : undefined;
     const localFile = matchingLocalModel?.file;
 
-    if (!localFile && !project) return;
+    if (!localFile && !project) {
+      if (projectFetched) {
+        setIsSceneLoading(false);
+      }
+      return;
+    }
 
     setIsSceneLoading(true);
+    setLoadProgressPercent(0);
+
     loadProjectScene(
       engineManager,
       project,
       localFile,
       matchingLocalModel?.siblingFiles,
-    ).then(({ entries, error, center, radius }) => {
-      setObjects(entries);
-      setModelError(error);
-      if (center && radius) {
-        initialBoundsRef.current = { center, radius };
-      }
-      setIsSceneLoading(false);
-    });
-  }, [engineManager, project, projectId, pendingLocalModel]);
+      (prog) => setLoadProgressPercent(prog.percent),
+    )
+      .then(({ entries, error, center, radius }) => {
+        setObjects(entries);
+        setModelError(error);
+        if (center && radius) {
+          initialBoundsRef.current = { center, radius };
+        }
+      })
+      .catch((err) => {
+        setModelError(err?.message || 'Failed to load model file.');
+      })
+      .finally(() => {
+        setIsSceneLoading(false);
+        setLoadProgressPercent(null);
+      });
+  }, [engineManager, project, projectId, pendingLocalModel, projectFetched]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -557,7 +584,14 @@ export default function ViewerPage() {
 
       {isSceneLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-surface-0/80 backdrop-blur-sm z-50">
-          <Loader size="lg" label="Loading 3D model..." />
+          <Loader
+            size="lg"
+            label={
+              loadProgressPercent != null
+                ? `Loading 3D model… ${loadProgressPercent}%`
+                : 'Loading 3D model...'
+            }
+          />
         </div>
       )}
 

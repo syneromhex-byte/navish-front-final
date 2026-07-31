@@ -1,19 +1,19 @@
 import { modelApi } from '@services/modelApi';
 
+// In-memory cache for presigned URLs (cached for 1 hour to eliminate redundant network requests)
+const urlCache = new Map<string, { url: string; expiresAt: number }>();
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 export function resolveServerUrl(url: string | undefined): string | undefined {
   if (!url) return url;
-  const cleanUrl =
-    url.startsWith('blob:') || url.startsWith('data:')
-      ? url
-      : url.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
 
   if (
-    cleanUrl.startsWith('http://') ||
-    cleanUrl.startsWith('https://') ||
-    cleanUrl.startsWith('blob:') ||
-    cleanUrl.startsWith('data:')
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('blob:') ||
+    url.startsWith('data:')
   ) {
-    return cleanUrl;
+    return url;
   }
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://navish-arc.site/api/v1';
   let origin = apiBase;
@@ -22,7 +22,7 @@ export function resolveServerUrl(url: string | undefined): string | undefined {
   } catch {
     // Fallback if apiBase is just a path or invalid URL
   }
-  return `${origin}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
+  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
 /**
@@ -40,32 +40,38 @@ export async function getAuthorizedModelUrl(
     return rawUrl;
   }
 
-  // If URL already contains S3 presigned query parameters, sanitize and return
+  // If URL already contains S3 presigned query parameters, return directly
   if (
     rawUrl.includes('X-Amz-Algorithm') ||
     rawUrl.includes('X-Amz-Signature') ||
     rawUrl.includes('Signature=')
   ) {
-    return rawUrl.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
+    return rawUrl;
   }
 
   if (!databaseModelId || typeof databaseModelId !== 'string' || databaseModelId.trim() === '') {
-    console.warn('⚠️ getAuthorizedModelUrl called without a valid databaseModelId! Falling back to raw URL.', {
-      rawUrl,
-      databaseModelId,
-    });
     return resolveServerUrl(rawUrl);
   }
 
+  const modelIdKey = databaseModelId.trim();
+
+  // Return cached presigned URL if available and valid
+  const cached = urlCache.get(modelIdKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.url;
+  }
+
   try {
-    const presignedUrl = await modelApi.getPresignedUrl(databaseModelId.trim());
+    const presignedUrl = await modelApi.getPresignedUrl(modelIdKey, 604800);
     if (!presignedUrl) {
       throw new Error(`API responded, but presignedUrl was missing or empty for databaseModelId: ${databaseModelId}`);
     }
-    return presignedUrl.replace('/temp/models/', '/temp/').replace('/models/', '/temp/');
+    // Store in cache
+    urlCache.set(modelIdKey, { url: presignedUrl, expiresAt: Date.now() + CACHE_TTL_MS });
+    return presignedUrl;
   } catch (err) {
     console.error('❌ Failed to fetch presigned URL for databaseModelId:', databaseModelId, err);
-    throw err;
+    return resolveServerUrl(rawUrl);
   }
 }
 

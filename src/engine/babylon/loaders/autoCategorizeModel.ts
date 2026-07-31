@@ -8,6 +8,7 @@ export interface AutoCategorizeResult {
   entries: ObjectPanelEntry[];
   center: Vector3;
   radius: number;
+  floorY: number;
 }
 
 /**
@@ -18,8 +19,8 @@ export interface AutoCategorizeResult {
  * the whole model, so it works for any reasonably conventional
  * architectural model rather than one specific scene: floors read as flat
  * and wide near the bottom, walls as tall and thin, everything else is
- * furniture. Floor/wall meshes get `checkCollisions = true` so Walk mode
- * can't pass through them.
+ * furniture. All meshes get `checkCollisions = true` so Walk mode can't pass
+ * through walls, floors, or furniture.
  */
 export function autoCategorizeModel(
   engineManager: EngineManager,
@@ -27,7 +28,7 @@ export function autoCategorizeModel(
 ): AutoCategorizeResult {
   const meshes = root.getChildMeshes(false).filter((mesh) => mesh.getTotalVertices() > 0);
   if (meshes.length === 0) {
-    return { entries: [], center: Vector3.Zero(), radius: 3 };
+    return { entries: [], center: Vector3.Zero(), radius: 3, floorY: 0 };
   }
 
   meshes.forEach((mesh) => {
@@ -104,14 +105,15 @@ export function autoCategorizeModel(
     if (height < horizontalSpan * 0.15 && heightFromBottom < modelHeight * 0.2) {
       // Flat and wide, sitting at the bottom of the model.
       category = 'floor';
-      mesh.checkCollisions = true;
     } else if (height > Math.min(width, depth) * 2 && height > modelHeight * 0.4) {
       // Tall relative to its own footprint, and thin in one horizontal direction.
       category = 'wall';
-      mesh.checkCollisions = true;
     } else {
       category = 'furniture';
     }
+
+    // Enable collision check on every mesh in the model so Walk mode is constrained by walls, floors, and furniture
+    mesh.checkCollisions = true;
 
     const entry = engineManager.objectManager.register(mesh, category);
     engineManager.lightManager.registerCaster(mesh);
@@ -119,5 +121,5 @@ export function autoCategorizeModel(
     return { id: entry.id, name: entry.name, category: entry.category };
   });
 
-  return { entries, center, radius };
+  return { entries, center, radius, floorY: minY };
 }

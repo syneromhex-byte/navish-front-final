@@ -29,7 +29,11 @@ export class VRManager {
     });
 
     this.xrHelper.baseExperience.onStateChangedObservable.add((state) => {
-      this.onStateChange?.(state === WebXRState.IN_XR);
+      const isInXR = state === WebXRState.IN_XR;
+      if (isInXR && this.scene.activeCamera) {
+        this.xrHelper?.baseExperience.camera.position.copyFrom(this.scene.activeCamera.position);
+      }
+      this.onStateChange?.(isInXR);
     });
 
     return true;

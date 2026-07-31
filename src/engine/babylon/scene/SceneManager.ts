@@ -27,11 +27,8 @@ export class SceneManager {
     this.scene.skipPointerMovePicking = false;
     this.scene.autoClear = true;
 
-    // Babylon's legacy camera collision system applies `scene.gravity` as a
-    // direct per-frame position offset (not a per-second acceleration), so
-    // real-world -9.807 — the engine's own default — sends a walking camera
-    // through the floor almost instantly. A small per-frame value keeps
-    // Walk/First Person feeling grounded instead of freefalling.
+    // Enable global scene collision checks so camera collision and wall/floor sliding work properly
+    this.scene.collisionsEnabled = true;
     this.scene.gravity = new Vector3(0, -0.98, 0);
   }
 

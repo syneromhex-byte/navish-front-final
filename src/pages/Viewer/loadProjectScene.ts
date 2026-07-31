@@ -2,7 +2,7 @@
 import type { EngineManager } from '@engine/babylon/EngineManager';
 import type { ObjectPanelEntry } from '@components/editor/ObjectPanel/ObjectPanel';
 import type { Project } from '@app-types/project.types';
-import type { LoadedModelMetadata } from '@app-types/viewer.types';
+import type { LoadedModelMetadata, ModelLoadProgress } from '@app-types/viewer.types';
 import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
 import { getAuthorizedModelUrl, resolveServerUrl } from '@utils/resolveServerUrl';
 
@@ -13,6 +13,7 @@ export interface ProjectSceneResult {
   error: string | null;
   center?: Vector3;
   radius?: number;
+  floorY?: number;
 }
 
 async function finishLoadedModel(
@@ -32,26 +33,25 @@ async function finishLoadedModel(
     }
   });
 
-  const { entries, center, radius } = autoCategorizeModel(engineManager, root);
-  engineManager.cameraManager.frameBounds(center, radius);
+  const { entries, center, radius, floorY } = autoCategorizeModel(engineManager, root);
+  engineManager.cameraManager.frameBounds(center, radius, floorY);
   engineManager.environmentManager.refreshReflections();
   engineManager.objectManager.captureInitialState();
-  return { entries, error: null, center, radius };
+  return { entries, error: null, center, radius, floorY };
 }
-
-
 
 export async function loadProjectScene(
   engineManager: EngineManager,
   project: Project | undefined,
   localFile?: File,
   localSiblingFiles?: File[],
+  onProgress?: (progress: ModelLoadProgress) => void,
 ): Promise<ProjectSceneResult> {
   try {
     if (localFile) {
       const metadata = await engineManager.modelLoader.loadFromFile(
         localFile,
-        undefined,
+        onProgress,
         localSiblingFiles,
       );
       return await finishLoadedModel(engineManager, metadata);
@@ -74,7 +74,7 @@ export async function loadProjectScene(
       };
     }
 
-    const metadata = await engineManager.modelLoader.loadFromUrl(resolvedUrl);
+    const metadata = await engineManager.modelLoader.loadFromUrl(resolvedUrl, onProgress);
     return await finishLoadedModel(engineManager, metadata);
   } catch (err: any) {
     return {

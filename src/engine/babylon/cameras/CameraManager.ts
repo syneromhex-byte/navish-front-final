@@ -13,6 +13,7 @@ export class CameraManager {
   private camera: Camera;
   private modelRadius: number = DEFAULT_RADIUS;
   private modelCenter: Vector3 = DEFAULT_TARGET;
+  private modelFloorY: number = 0;
 
   constructor(scene: Scene, canvas: HTMLCanvasElement) {
     this.scene = scene;
@@ -30,6 +31,14 @@ export class CameraManager {
     return this.mode;
   }
 
+  getModelCenter(): Vector3 {
+    return this.modelCenter.clone();
+  }
+
+  getModelFloorY(): number {
+    return this.modelFloorY;
+  }
+
   setMode(mode: CameraMode): void {
     if (mode === this.mode) return;
 
@@ -42,19 +51,16 @@ export class CameraManager {
         this.camera = this.createOrbitCamera(position, target);
         break;
       case 'firstPerson':
+      case 'walk': {
+        const spawnPoint = this.getInteriorSpawnPoint();
+        const lookTarget = spawnPoint.add(new Vector3(0, 0, 1));
         this.camera = this.createGroundedCamera(
-          'fpsCamera',
-          this.groundedSpawnFrom(position, target),
-          target,
+          mode === 'walk' ? 'walkCamera' : 'fpsCamera',
+          spawnPoint,
+          lookTarget,
         );
         break;
-      case 'walk':
-        this.camera = this.createGroundedCamera(
-          'walkCamera',
-          this.groundedSpawnFrom(position, target),
-          target,
-        );
-        break;
+      }
       case 'fly':
         this.camera = this.createFreeCamera(position, target);
         break;
@@ -75,9 +81,10 @@ export class CameraManager {
   }
 
   /** Frames the camera to comfortably view a bounding sphere. */
-  frameBounds(center: Vector3, radius: number): void {
+  frameBounds(center: Vector3, radius: number, floorY?: number): void {
     this.modelCenter = center.clone();
     this.modelRadius = radius;
+    this.modelFloorY = floorY !== undefined ? floorY : center.y - radius * 0.5;
 
     if (this.camera instanceof ArcRotateCamera) {
       this.camera.target = center;
@@ -124,29 +131,11 @@ export class CameraManager {
   }
 
   /**
-   * Grounded (walk/first-person) cameras need a spawn point guaranteed to be
-   * inside the walkable space. The orbit/cinematic camera we're switching
-   * *from* can be orbiting far outside the actual room (e.g. after
-   * `frameBounds` frames a wide shot), so blindly reusing its raw position
-   * as the walk-camera spawn can drop the player outside the floor
-   * entirely. Instead, keep the horizontal direction the previous camera
-   * was viewing from (so the switch doesn't feel like a random teleport)
-   * but clamp the distance from `target` to a few meters — safely inside
-   * any reasonably-sized room or loaded model, generic to whatever content
-   * is on screen rather than tuned to one specific scene.
+   * Returns a spawn position guaranteed to be inside the room interior at eye level (~1.7m).
    */
-  private groundedSpawnFrom(previousPosition: Vector3, target: Vector3): Vector3 {
-    const horizontalOffset = new Vector3(
-      previousPosition.x - target.x,
-      0,
-      previousPosition.z - target.z,
-    );
-    const distance = horizontalOffset.length();
-    const direction = distance > 0.01 ? horizontalOffset.normalize() : new Vector3(0, 0, -1);
-    const safeDistance = Math.min(distance, 3);
-    const spawn = target.add(direction.scale(safeDistance));
-    spawn.y = EYE_HEIGHT;
-    return spawn;
+  getInteriorSpawnPoint(): Vector3 {
+    const eyeHeightPos = this.modelFloorY + EYE_HEIGHT;
+    return new Vector3(this.modelCenter.x, eyeHeightPos, this.modelCenter.z);
   }
 
   private captureTransform(): { position: Vector3; target: Vector3 } {
@@ -186,28 +175,26 @@ export class CameraManager {
     position?: Vector3,
     target: Vector3 = DEFAULT_TARGET,
   ): UniversalCamera {
-    const camera = new UniversalCamera(
-      name,
-      position ?? new Vector3(0, EYE_HEIGHT, -DEFAULT_RADIUS / 2),
-      this.scene,
-    );
+    const eyePos = position ?? this.getInteriorSpawnPoint();
+    const camera = new UniversalCamera(name, eyePos, this.scene);
     camera.applyGravity = true;
     camera.needMoveForGravity = true;
     camera.checkCollisions = true;
     camera.ellipsoid = new Vector3(0.4, EYE_HEIGHT / 2, 0.4);
     camera.minZ = 0.05;
-    // Increased speed for faster movement
     camera.speed = 1.0; 
     camera.angularSensibility = 1000;
-    camera.keysUp = [87, 38];
-    camera.keysDown = [83, 40];
-    camera.keysLeft = [65, 37];
-    camera.keysRight = [68, 39];
+    camera.keysUp = [87, 38]; // W, Up Arrow
+    camera.keysDown = [83, 40]; // S, Down Arrow
+    camera.keysLeft = [65, 37]; // A, Left Arrow
+    camera.keysRight = [68, 39]; // D, Right Arrow
     camera.setTarget(target);
 
-    const groundLevel = EYE_HEIGHT;
+    const minGroundY = this.modelFloorY + EYE_HEIGHT;
     const clampObserver = this.scene.onBeforeRenderObservable.add(() => {
-      if (camera.position.y < groundLevel) camera.position.y = groundLevel;
+      if (camera.position.y < minGroundY) {
+        camera.position.y = minGroundY;
+      }
     });
     camera.onDisposeObservable.addOnce(() => {
       this.scene.onBeforeRenderObservable.remove(clampObserver);

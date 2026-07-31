@@ -209,7 +209,7 @@ export const modelApi = {
    * Fetches a fresh presigned GET URL using the Database Model Primary Key (id column/field in PostgreSQL/MongoDB).
    * Note: Expects databaseModelId (e.g. primary key ID), NOT an S3 filename or Project ID.
    */
-  getPresignedUrl: async (databaseModelId: string, expiresIn?: number) => {
+  getPresignedUrl: async (databaseModelId: string, expiresIn = 604800) => {
     const res = await apiClient.get<any>(
       `/models/${databaseModelId}/presigned-url`,
       { params: { expiresIn } },
