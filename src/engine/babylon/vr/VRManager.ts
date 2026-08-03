@@ -30,6 +30,17 @@ export class VRManager {
       optionalFeatures: true,
     });
 
+    // Enable Fixed Foveated Rendering (FFR) for Quest & WebXR headsets
+    try {
+      this.xrHelper.baseExperience.featuresManager.enableFeature(
+        'xr-fixed-foveated-rendering' as any,
+        'latest',
+        { foveation: 1.0 },
+      );
+    } catch {
+      // Graceful fallback if FFR extension is not supported by headset/browser
+    }
+
     if (this.xrHelper.teleportation && blockerMeshes.length > 0) {
       blockerMeshes.forEach((mesh) => {
         this.xrHelper?.teleportation.addBlockerMesh(mesh);

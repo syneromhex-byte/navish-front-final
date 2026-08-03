@@ -69,6 +69,16 @@ export class OptimizationManager {
     mesh.occlusionRetryCount = 2;
   }
 
+  /** Freezes world matrices, bounding info sync, and materials for static architectural scene geometry. */
+  optimizeStaticScene(): void {
+    this.scene.meshes.forEach((mesh) => {
+      mesh.freezeWorldMatrix();
+      mesh.doNotSyncBoundingInfo = true;
+    });
+    this.scene.freezeMaterials();
+    this.scene.blockMaterialDirtyMechanism = true;
+  }
+
   /** Lowers render resolution (not CSS size) under sustained frame-budget pressure. */
   setHardwareScalingLevel(level: number): void {
     this.engine.setHardwareScalingLevel(level);
