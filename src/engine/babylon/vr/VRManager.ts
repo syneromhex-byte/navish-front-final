@@ -1,10 +1,12 @@
-import { WebXRSessionManager, WebXRState } from '@babylonjs/core';
-import type { AbstractMesh, Scene, WebXRDefaultExperience } from '@babylonjs/core';
+import { Vector3, WebXRSessionManager, WebXRState } from '@babylonjs/core';
+import type { AbstractMesh, Camera, Scene, WebXRDefaultExperience } from '@babylonjs/core';
 
 export class VRManager {
   private scene: Scene;
   private xrHelper: WebXRDefaultExperience | null = null;
   private onStateChange: ((isInVR: boolean) => void) | null = null;
+  private savedCameraPosition: Vector3 | null = null;
+  private nonVRCamera: Camera | null = null;
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -18,8 +20,8 @@ export class VRManager {
     }
   }
 
-  /** Sets up WebXR with teleportation against the given floor meshes. Call once the scene has real geometry. */
-  async initialize(floorMeshes: AbstractMesh[]): Promise<boolean> {
+  /** Sets up WebXR with teleportation against floor meshes and wall blocker meshes. */
+  async initialize(floorMeshes: AbstractMesh[], blockerMeshes: AbstractMesh[] = []): Promise<boolean> {
     const supported = await VRManager.isSupported();
     if (!supported) return false;
 
@@ -28,10 +30,21 @@ export class VRManager {
       optionalFeatures: true,
     });
 
+    if (this.xrHelper.teleportation && blockerMeshes.length > 0) {
+      blockerMeshes.forEach((mesh) => {
+        this.xrHelper?.teleportation.addBlockerMesh(mesh);
+      });
+    }
+
     this.xrHelper.baseExperience.onStateChangedObservable.add((state) => {
       const isInXR = state === WebXRState.IN_XR;
-      if (isInXR && this.scene.activeCamera) {
-        this.xrHelper?.baseExperience.camera.position.copyFrom(this.scene.activeCamera.position);
+      if (isInXR && this.xrHelper) {
+        const xrCamera = this.xrHelper.baseExperience.camera;
+        if (this.nonVRCamera && typeof xrCamera.setTransformationFromNonVRCamera === 'function') {
+          xrCamera.setTransformationFromNonVRCamera(this.nonVRCamera);
+        } else if (this.savedCameraPosition) {
+          xrCamera.position.copyFrom(this.savedCameraPosition);
+        }
       }
       this.onStateChange?.(isInXR);
     });
@@ -44,6 +57,10 @@ export class VRManager {
   }
 
   async enterVR(): Promise<void> {
+    if (this.scene.activeCamera && !this.isInVR()) {
+      this.nonVRCamera = this.scene.activeCamera;
+      this.savedCameraPosition = this.scene.activeCamera.position.clone();
+    }
     await this.xrHelper?.baseExperience.enterXRAsync('immersive-vr', 'local-floor');
   }
 
@@ -69,3 +86,4 @@ export class VRManager {
     this.xrHelper?.dispose();
   }
 }
+

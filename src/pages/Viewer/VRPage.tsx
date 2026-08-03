@@ -50,7 +50,12 @@ export default function VRPage() {
             .filter((entry) => entry.category === 'floor')
             .map((entry) => entry.mesh);
 
-          return engineManager.vrManager.initialize(floorMeshes);
+          const blockerMeshes = engineManager.objectManager
+            .getAll()
+            .filter((entry) => entry.category === 'wall' || entry.category === 'door' || entry.category === 'window')
+            .map((entry) => entry.mesh);
+
+          return engineManager.vrManager.initialize(floorMeshes, blockerMeshes);
         })
         .then((supported) => {
           setIsSupported(supported);
