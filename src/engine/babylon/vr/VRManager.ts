@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { Vector3, WebXRFeatureName, WebXRSessionManager, WebXRState } from '@babylonjs/core';
+=======
+import { Vector3, WebXRSessionManager, WebXRState } from '@babylonjs/core';
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
 import type { AbstractMesh, Camera, Scene, WebXRDefaultExperience } from '@babylonjs/core';
 
 export class VRManager {
@@ -28,7 +32,10 @@ export class VRManager {
     this.xrHelper = await this.scene.createDefaultXRExperienceAsync({
       floorMeshes,
       optionalFeatures: true,
+<<<<<<< HEAD
       uiOptions: { doNotAttachUI: true },
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
     });
 
     // Enable Fixed Foveated Rendering (FFR) for Quest & WebXR headsets
@@ -48,6 +55,7 @@ export class VRManager {
       });
     }
 
+<<<<<<< HEAD
     // Let the room be walked with the thumbstick (not just teleported around),
     // and keep it wall-aware like the desktop walk camera so movement can't clip through walls.
     const xrCamera = this.xrHelper.baseExperience.camera;
@@ -69,6 +77,8 @@ export class VRManager {
       // Continuous thumbstick movement not supported by this headset/browser — teleportation still works.
     }
 
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
     this.xrHelper.baseExperience.onStateChangedObservable.add((state) => {
       const isInXR = state === WebXRState.IN_XR;
       if (isInXR && this.xrHelper) {
@@ -90,13 +100,17 @@ export class VRManager {
   }
 
   async enterVR(): Promise<void> {
+<<<<<<< HEAD
     if (!this.xrHelper) {
       throw new Error('VR session is not ready yet — the scene has not finished initializing WebXR.');
     }
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
     if (this.scene.activeCamera && !this.isInVR()) {
       this.nonVRCamera = this.scene.activeCamera;
       this.savedCameraPosition = this.scene.activeCamera.position.clone();
     }
+<<<<<<< HEAD
     // Not every headset/browser supports the 'local-floor' reference space
     // (desktop WebXR emulators do, but some real hardware only supports
     // 'local'), so fall back rather than letting enterXRAsync throw silently.
@@ -105,6 +119,9 @@ export class VRManager {
     } catch {
       await this.xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local');
     }
+=======
+    await this.xrHelper?.baseExperience.enterXRAsync('immersive-vr', 'local-floor');
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
   }
 
   async exitVR(): Promise<void> {

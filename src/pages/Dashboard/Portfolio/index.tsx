@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { useEffect, useState } from 'react';
+=======
+import { useState } from 'react';
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
 import type { ChangeEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input, Modal, Textarea, UploadProgressDisplay } from '@components/common';
@@ -8,6 +12,7 @@ import type { UploadProgress } from '@app-types/project.types';
 import { modelApi } from '@services/modelApi';
 import { portfolioApi } from '@services/portfolio/portfolioApi';
 import { formatBytes } from '@utils/format';
+<<<<<<< HEAD
 import { getApiErrorMessage } from '@utils/apiError';
 import { ROUTES } from '@constants/routes';
 
@@ -16,10 +21,19 @@ export default function DashboardPortfolio() {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [listError, setListError] = useState<string | null>(null);
+=======
+import { ROUTES } from '@constants/routes';
+
+export default function DashboardPortfolio() {
+  const { items, addItem, updateItem, removeItem } = usePortfolioStore();
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<PortfolioItem | null>(null);
+<<<<<<< HEAD
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -40,6 +54,8 @@ export default function DashboardPortfolio() {
         setListError(getApiErrorMessage(err, 'Could not load the portfolio list from the server. Showing locally cached items only.'));
       });
   }, []);
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
 
   // Form states
   const [title, setTitle] = useState('');
@@ -65,7 +81,10 @@ export default function DashboardPortfolio() {
     setFormat('glb');
     setEditingItem(null);
     setUploadProgress(null);
+<<<<<<< HEAD
     setSaveError(null);
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
   };
 
   const handleOpenAddModal = () => {
@@ -164,6 +183,7 @@ export default function DashboardPortfolio() {
         uploadedUrl = response.modelUrl;
         if (response.thumbnailUrl) thumbUrl = response.thumbnailUrl;
       } catch (err: any) {
+<<<<<<< HEAD
         // Don't fall back to a blob: URL — it only resolves in this browser
         // tab, so saving it would produce a portfolio item nobody else (not
         // even this admin after a refresh) can actually view.
@@ -174,6 +194,11 @@ export default function DashboardPortfolio() {
           error: err?.response?.data?.message || err?.message || 'Model upload failed. Please try again.',
         });
         return;
+=======
+        console.warn('Backend upload failed, using local object URL fallback:', err);
+        setUploadProgress((prev) => (prev ? { ...prev, percent: 100, status: 'complete' } : null));
+        uploadedUrl = URL.createObjectURL(file);
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
       }
 
       setModelUrl(uploadedUrl);
@@ -212,6 +237,7 @@ export default function DashboardPortfolio() {
       isPublic,
     };
 
+<<<<<<< HEAD
     setIsSaving(true);
     setSaveError(null);
     try {
@@ -247,6 +273,33 @@ export default function DashboardPortfolio() {
   const filteredItems = items.filter((item) => {
     const q = search.toLowerCase();
     const matchesSearch = (item.title || '').toLowerCase().includes(q) || (item.description || '').toLowerCase().includes(q);
+=======
+    if (editingItem) {
+      updateItem(editingItem.id, payload);
+      await portfolioApi.update(editingItem.id, payload).catch(() => {});
+    } else {
+      const createdRemote = await portfolioApi.create(payload).catch(() => null);
+      if (createdRemote) {
+        usePortfolioStore.setState((state) => ({
+          items: [createdRemote, ...state.items.filter((i) => i.id !== createdRemote.id)],
+        }));
+      } else {
+        addItem(payload);
+      }
+    }
+
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  const handleDelete = async (id: string) => {
+    removeItem(id);
+    await portfolioApi.remove(id).catch(() => {});
+  };
+
+  const filteredItems = items.filter((item) => {
+    const matchesSearch = item.title.toLowerCase().includes(search.toLowerCase()) || item.description.toLowerCase().includes(search.toLowerCase());
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -266,12 +319,15 @@ export default function DashboardPortfolio() {
         </Button>
       </div>
 
+<<<<<<< HEAD
       {listError && (
         <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-amber-500">
           {listError}
         </div>
       )}
 
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
       {/* SEARCH AND FILTERS */}
       <div className="mt-6 flex flex-wrap items-center gap-4">
         <Input
@@ -457,18 +513,26 @@ export default function DashboardPortfolio() {
             Make Visible to Clients on Public Portfolio Page
           </label>
 
+<<<<<<< HEAD
           {saveError && (
             <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-xs text-red-400">
               {saveError}
             </div>
           )}
 
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
+<<<<<<< HEAD
             <Button variant="primary" disabled={!title.trim() || isSaving} onClick={handleSave}>
               {isSaving ? 'Saving…' : 'Save Portfolio Item'}
+=======
+            <Button variant="primary" disabled={!title.trim()} onClick={handleSave}>
+              Save Portfolio Item
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
             </Button>
           </div>
         </div>

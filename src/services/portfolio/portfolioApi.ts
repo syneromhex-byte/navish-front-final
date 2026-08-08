@@ -52,6 +52,7 @@ export async function getPublicPortfolioItem(id: string): Promise<PortfolioItem>
 export async function createPortfolioItem(
   itemData: Omit<PortfolioItem, 'id' | 'createdAt'>,
 ): Promise<PortfolioItem> {
+<<<<<<< HEAD
   // Let failures propagate — a locally-fabricated fallback item would only
   // ever exist in this browser's storage, never in the database, so public
   // visitors fetching the real /portfolio list would never see it.
@@ -61,12 +62,29 @@ export async function createPortfolioItem(
     throw new Error('Portfolio item was not saved — the server did not return a saved item.');
   }
   return data as PortfolioItem;
+=======
+  try {
+    const res = await apiClient.post<ApiEnvelope<PortfolioItem>>('/portfolio', itemData);
+    const data = res.data?.data ?? res.data;
+    if (data && typeof data === 'object' && (data as PortfolioItem).id) {
+      return data as PortfolioItem;
+    }
+  } catch (err) {
+    console.warn('Backend portfolio creation call failed, fallback to store:', err);
+  }
+  return {
+    ...itemData,
+    id: `port_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+  };
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
 }
 
 export async function updatePortfolioItem(
   id: string,
   updates: Partial<PortfolioItem>,
 ): Promise<PortfolioItem> {
+<<<<<<< HEAD
   const res = await apiClient.put<ApiEnvelope<PortfolioItem>>(`/portfolio/${id}`, updates);
   const data = res.data?.data ?? res.data;
   if (!data || typeof data !== 'object') {
@@ -86,11 +104,34 @@ export async function listPortfolioItemsAsAdmin(category?: string): Promise<Port
   });
   const data = res.data?.data ?? res.data;
   return (Array.isArray(data) ? data : []) as PortfolioItem[];
+=======
+  try {
+    const res = await apiClient.put<ApiEnvelope<PortfolioItem>>(`/portfolio/${id}`, updates);
+    const data = res.data?.data ?? res.data;
+    if (data && typeof data === 'object') {
+      return data as PortfolioItem;
+    }
+  } catch (err) {
+    console.warn('Backend portfolio update call failed, fallback to store:', err);
+  }
+  return { id, ...updates } as PortfolioItem;
+}
+
+export async function deletePortfolioItem(id: string): Promise<void> {
+  try {
+    await apiClient.delete(`/portfolio/${id}`);
+  } catch (err) {
+    console.warn('Backend portfolio deletion call failed:', err);
+  }
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
 }
 
 export const portfolioApi = {
   list: (category?: string) => getPublicPortfolio(category),
+<<<<<<< HEAD
   listAsAdmin: (category?: string) => listPortfolioItemsAsAdmin(category),
+=======
+>>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
 
   get: (id: string) =>
     getPublicPortfolioItem(id).catch(() =>
