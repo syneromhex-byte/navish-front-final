@@ -28,7 +28,7 @@ export class VRManager {
     this.xrHelper = await this.scene.createDefaultXRExperienceAsync({
       floorMeshes,
       optionalFeatures: true,
-      uiOptions: { doNotAttachUI: true },
+      disableDefaultUI: true,
     });
 
     // Enable Fixed Foveated Rendering (FFR) for Quest & WebXR headsets
@@ -63,6 +63,7 @@ export class VRManager {
           movementSpeed: 0.2,
           rotationSpeed: 0.3,
           movementOrientationFollowsViewerPose: true,
+          movementOrientationFollowsController: false,
         },
       );
     } catch {
