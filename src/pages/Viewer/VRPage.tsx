@@ -75,7 +75,6 @@ export default function VRPage() {
   );
 
   const handleEnterVR = useCallback(() => {
-<<<<<<< HEAD
     engineManagerRef.current?.vrManager.enterVR().catch((err) => {
       setModelError(err?.message || 'Could not start the VR session. Make sure your headset is connected and try again.');
     });
@@ -85,13 +84,6 @@ export default function VRPage() {
     engineManagerRef.current?.vrManager.exitVR().catch((err) => {
       setModelError(err?.message || 'Could not exit the VR session.');
     });
-=======
-    engineManagerRef.current?.vrManager.enterVR();
-  }, []);
-
-  const handleExitVR = useCallback(() => {
-    engineManagerRef.current?.vrManager.exitVR();
->>>>>>> 6e4e121d706ce18602635baff16ec366bbe96fcd
   }, []);
 
   const handleTeleportToggle = useCallback((enabled: boolean) => {
