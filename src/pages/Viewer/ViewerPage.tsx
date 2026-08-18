@@ -25,6 +25,7 @@ import { useViewerStore } from '@store/viewerStore';
 import { useProjectStore } from '@store/projectStore';
 import { usePortfolioStore } from '@store/portfolioStore';
 import { portfolioApi } from '@services/portfolio/portfolioApi';
+import { getApiErrorMessage } from '@utils/apiError';
 import { useLocalModelStore } from '@store/localModelStore';
 import { ROUTES } from '@constants/routes';
 import type { EngineStats } from '@app-types/viewer.types';
@@ -101,6 +102,27 @@ export default function ViewerPage() {
     if (!projectId) return;
     setIsSceneLoading(true);
 
+    // Direct HTTP(S)/S3/Blob URL passed as projectId parameter
+    if (
+      projectId.startsWith('http://') ||
+      projectId.startsWith('https://') ||
+      projectId.startsWith('s3://') ||
+      projectId.includes('.glb') ||
+      projectId.includes('.gltf')
+    ) {
+      setProject({
+        id: projectId,
+        name: '3D Model',
+        modelUrl: projectId,
+        fileUrl: projectId,
+        status: 'APPROVED',
+        sizeBytes: 0,
+        clientName: '3D Model',
+      } as unknown as Project);
+      setProjectFetched(true);
+      return;
+    }
+
     if (projectId.startsWith('port_')) {
       const pItem = usePortfolioStore.getState().items.find((i) => i.id === projectId);
       if (pItem) {
@@ -125,8 +147,8 @@ export default function ViewerPage() {
               clientName: 'Portfolio Item',
             } as unknown as Project);
           })
-          .catch(() => {
-            setModelError('Portfolio item not found.');
+          .catch((err) => {
+            setModelError(getApiErrorMessage(err, 'Portfolio item not found.'));
             setIsSceneLoading(false);
           });
       }
@@ -144,35 +166,69 @@ export default function ViewerPage() {
         useProjectStore.getState().updateProject(projectId, data);
       })
       .catch((err) => {
-        console.error('Failed to load project from API', err);
-        const localProj = useProjectStore.getState().projects.find((p) => p.id === projectId);
+        console.error('Failed to load project from API:', err);
+        const localProj = useProjectStore.getState().projects.find(
+          (p) => p.id === projectId || p.modelId === projectId || p.model_id === projectId,
+        );
         if (localProj) {
           setProject(localProj);
         } else {
-          // Fallback: try fetching by 3D model API if project lookup failed
+          // Fallback 1: try fetching by 3D model API if project lookup failed
           modelApi
             .getModel(projectId)
             .then((m) => {
-              const url = m.presignedUrl || m.modelUrl || m.publicUrl || m.storagePath;
+              const url =
+                m.presignedUrl ||
+                m.modelUrl ||
+                m.publicUrl ||
+                m.fileUrl ||
+                m.url ||
+                m.storagePath ||
+                m.location ||
+                m.key ||
+                m.path ||
+                m.presigned_url ||
+                m.model_url;
               if (url) {
                 const proj: Project = {
-                  id: m.id || projectId,
-                  name: m.name || m.title || '3D Model',
+                  id: m.id || m.modelId || m._id || projectId,
+                  name: m.name || m.title || m.fileName || m.modelName || '3D Model',
                   modelUrl: url,
                   fileUrl: url,
                   status: 'APPROVED',
-                  sizeBytes: m.fileSize,
-                  clientName: m.authorName || '3D Model',
+                  sizeBytes: m.fileSize || m.sizeBytes || 0,
+                  clientName: m.authorName || m.clientName || '3D Model',
+                  modelId: m.id || m.modelId || m._id || projectId,
                 } as unknown as Project;
                 setProject(proj);
               } else {
-                setModelError('Project not found or server is unreachable.');
-                setIsSceneLoading(false);
+                // Fallback 2: try fetching by share token
+                projectApi
+                  .getByShareToken(projectId)
+                  .then((shared) => {
+                    setProject(shared);
+                  })
+                  .catch(() => {
+                    setModelError(
+                      getApiErrorMessage(err, 'Project not found or server is unreachable.'),
+                    );
+                    setIsSceneLoading(false);
+                  });
               }
             })
             .catch(() => {
-              setModelError('Project not found or server is unreachable.');
-              setIsSceneLoading(false);
+              // Fallback 2: try fetching by share token
+              projectApi
+                .getByShareToken(projectId)
+                .then((shared) => {
+                  setProject(shared);
+                })
+                .catch(() => {
+                  setModelError(
+                    getApiErrorMessage(err, 'Project not found or server is unreachable.'),
+                  );
+                  setIsSceneLoading(false);
+                });
             });
         }
       })
