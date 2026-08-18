@@ -102,19 +102,25 @@ export default function ViewerPage() {
     if (!projectId) return;
     setIsSceneLoading(true);
 
-    // Direct HTTP(S)/S3/Blob URL passed as projectId parameter
+    const cleanProjectId = decodeURIComponent(projectId || '').trim();
+
+    // Direct HTTP(S)/S3/Blob URL or file/S3 key path passed as projectId parameter
     if (
-      projectId.startsWith('http://') ||
-      projectId.startsWith('https://') ||
-      projectId.startsWith('s3://') ||
-      projectId.includes('.glb') ||
-      projectId.includes('.gltf')
+      cleanProjectId.startsWith('http://') ||
+      cleanProjectId.startsWith('https://') ||
+      cleanProjectId.startsWith('s3://') ||
+      cleanProjectId.includes('.glb') ||
+      cleanProjectId.includes('.gltf') ||
+      cleanProjectId.includes('.obj') ||
+      cleanProjectId.includes('/') ||
+      cleanProjectId.includes('\\') ||
+      cleanProjectId.includes('temp')
     ) {
       setProject({
-        id: projectId,
+        id: cleanProjectId,
         name: '3D Model',
-        modelUrl: projectId,
-        fileUrl: projectId,
+        modelUrl: cleanProjectId,
+        fileUrl: cleanProjectId,
         status: 'APPROVED',
         sizeBytes: 0,
         clientName: '3D Model',
