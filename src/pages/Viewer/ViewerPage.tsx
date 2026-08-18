@@ -12,6 +12,7 @@ import { EnvironmentPanel } from '@components/editor/EnvironmentPanel/Environmen
 import { CameraControls } from '@components/editor/CameraControls/CameraControls';
 import { Tabs, Loader } from '@components/common';
 import { projectApi } from '@services/projectApi';
+import { modelApi } from '@services/modelApi';
 import type { EngineManager } from '@engine/babylon/EngineManager';
 import type { MaterialProperties } from '@engine/babylon/MaterialManager';
 import type { TransformValues } from '@engine/babylon/TransformManager';
@@ -145,10 +146,34 @@ export default function ViewerPage() {
       .catch((err) => {
         console.error('Failed to load project from API', err);
         const localProj = useProjectStore.getState().projects.find((p) => p.id === projectId);
-        setProject(localProj);
-        if (!localProj) {
-          setModelError('Project not found or server is unreachable.');
-          setIsSceneLoading(false);
+        if (localProj) {
+          setProject(localProj);
+        } else {
+          // Fallback: try fetching by 3D model API if project lookup failed
+          modelApi
+            .getModel(projectId)
+            .then((m) => {
+              const url = m.presignedUrl || m.modelUrl || m.publicUrl || m.storagePath;
+              if (url) {
+                const proj: Project = {
+                  id: m.id || projectId,
+                  name: m.name || m.title || '3D Model',
+                  modelUrl: url,
+                  fileUrl: url,
+                  status: 'APPROVED',
+                  sizeBytes: m.fileSize,
+                  clientName: m.authorName || '3D Model',
+                } as unknown as Project;
+                setProject(proj);
+              } else {
+                setModelError('Project not found or server is unreachable.');
+                setIsSceneLoading(false);
+              }
+            })
+            .catch(() => {
+              setModelError('Project not found or server is unreachable.');
+              setIsSceneLoading(false);
+            });
         }
       })
       .finally(() => {

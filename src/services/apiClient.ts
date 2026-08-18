@@ -6,8 +6,17 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retried?: boolean;
 }
 
+const resolveApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && !envUrl.includes('navish-arc.site')) return envUrl;
+  if (typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:5000/api/v1';
+  }
+  return envUrl || 'https://navish-arc.site/api/v1';
+};
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://navish-arc.site/api/v1',
+  baseURL: resolveApiBaseUrl(),
   withCredentials: true, // sends the httpOnly refresh-token cookie automatically
   timeout: 15_000,       // abort requests that hang for more than 15 s
 });
