@@ -65,7 +65,10 @@ export async function loadProjectScene(
       };
     }
 
-    const databaseModelId = project?.modelId || project?.model_id;
+    const databaseModelId =
+      project?.modelId ||
+      project?.model_id ||
+      (project?.id && !project.id.startsWith('port_') ? project.id : undefined);
     const resolvedUrl = (await getAuthorizedModelUrl(rawUrl, databaseModelId)) || resolveServerUrl(rawUrl);
     if (!resolvedUrl || resolvedUrl.includes('example.com') || resolvedUrl.startsWith('blob:')) {
       return {
@@ -77,6 +80,7 @@ export async function loadProjectScene(
     const metadata = await engineManager.modelLoader.loadFromUrl(resolvedUrl, onProgress);
     return await finishLoadedModel(engineManager, metadata);
   } catch (err: any) {
+    console.error('❌ Error loading 3D model scene:', err);
     return {
       entries: [],
       error: err?.message || 'Failed to load the 3D model file from the server.',

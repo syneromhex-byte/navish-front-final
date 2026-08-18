@@ -25,6 +25,7 @@ import type {
   ModelLoadProgress,
   ModelSourceFormat,
 } from '@app-types/viewer.types';
+import { resolveServerUrl } from '@utils/resolveServerUrl';
 
 export class ModelLoadError extends Error {}
 
@@ -108,7 +109,7 @@ export class ModelLoader {
     onProgress?: (progress: ModelLoadProgress) => void,
   ): Promise<LoadedModelMetadata> {
     const rawUrl = url || '';
-    const safeUrl = rawUrl;
+    const safeUrl = resolveServerUrl(rawUrl) || rawUrl;
     const isBlob = safeUrl.startsWith('blob:');
     
     let rootUrl = '';
@@ -141,8 +142,15 @@ export class ModelLoader {
     const format = isBlob ? 'glb' : detectFormat(fileName);
     this.assertBrowserLoadable(format);
 
-    const result = await SceneLoader.ImportMeshAsync(null, rootUrl, sceneFilename, this.scene, (event) =>
-      this.reportProgress(event, onProgress),
+    const pluginExt = '.' + format;
+
+    const result = await SceneLoader.ImportMeshAsync(
+      null,
+      rootUrl,
+      sceneFilename,
+      this.scene,
+      (event) => this.reportProgress(event, onProgress),
+      pluginExt,
     );
 
     return this.finalizeImport(fileName, format, result.meshes, result.transformNodes);

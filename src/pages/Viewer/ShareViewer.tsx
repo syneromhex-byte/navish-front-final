@@ -10,7 +10,7 @@ import { projectApi } from '@services/projectApi';
 import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
 import { getApiErrorMessage } from '@utils/apiError';
 
-import { getAuthorizedModelUrl } from '@utils/resolveServerUrl';
+import { getAuthorizedModelUrl, resolveServerUrl } from '@utils/resolveServerUrl';
 
 const CAMERA_MODES: { value: CameraMode; label: string }[] = [
   { value: 'orbit', label: 'Orbit' },
@@ -42,8 +42,9 @@ export default function ShareViewer() {
           return;
         }
 
-        const databaseModelId = project.modelId || project.model_id;
-        const modelUrlToLoad = (await getAuthorizedModelUrl(rawUrl, databaseModelId)) || rawUrl;
+        const databaseModelId = project.modelId || project.model_id || (project.id ? project.id : undefined);
+        const modelUrlToLoad =
+          (await getAuthorizedModelUrl(rawUrl, databaseModelId)) || resolveServerUrl(rawUrl) || rawUrl;
         const metadata = await engineManager.modelLoader.loadFromUrl(modelUrlToLoad);
         const root = engineManager.modelLoader.getRoot(metadata.rootId);
         if (root) {

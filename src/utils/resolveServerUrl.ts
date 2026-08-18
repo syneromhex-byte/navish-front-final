@@ -4,6 +4,30 @@ import { modelApi } from '@services/modelApi';
 const urlCache = new Map<string, { url: string; expiresAt: number }>();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+export function getApiOrigin(): string {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && !envUrl.includes('navish-arc.site')) {
+    try {
+      return new URL(envUrl).origin;
+    } catch {
+      // Fallback
+    }
+  }
+  if (
+    typeof window !== 'undefined' &&
+    window.location &&
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ) {
+    return 'http://localhost:5000';
+  }
+  const fallback = envUrl || 'https://navish-arc.site/api/v1';
+  try {
+    return new URL(fallback).origin;
+  } catch {
+    return 'https://navish-arc.site';
+  }
+}
+
 export function resolveServerUrl(url: string | undefined): string | undefined {
   if (!url) return url;
 
@@ -15,13 +39,7 @@ export function resolveServerUrl(url: string | undefined): string | undefined {
   ) {
     return url;
   }
-  const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://navish-arc.site/api/v1';
-  let origin = apiBase;
-  try {
-    origin = new URL(apiBase).origin;
-  } catch {
-    // Fallback if apiBase is just a path or invalid URL
-  }
+  const origin = getApiOrigin();
   return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
