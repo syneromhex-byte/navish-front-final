@@ -28,10 +28,45 @@ export function getApiOrigin(): string {
   }
 }
 
+export function isValidDatabaseId(id?: string): boolean {
+  if (!id || typeof id !== 'string') return false;
+  const trimmed = id.trim();
+  if (
+    trimmed.includes('/') ||
+    trimmed.includes('\\') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('s3://') ||
+    trimmed.endsWith('.glb') ||
+    trimmed.endsWith('.gltf') ||
+    trimmed.endsWith('.obj') ||
+    trimmed.startsWith('port_')
+  ) {
+    return false;
+  }
+  return true;
+}
+
 export function sanitizeModelUrl(url: string | undefined): string | undefined {
   if (!url || typeof url !== 'string') return url;
 
   let clean = url.trim();
+
+  // Convert s3://bucket/key to https://bucket.s3.amazonaws.com/key
+  if (clean.startsWith('s3://')) {
+    const s3Path = clean.slice(5);
+    const firstSlash = s3Path.indexOf('/');
+    if (firstSlash !== -1) {
+      const bucket = s3Path.slice(0, firstSlash);
+      const key = s3Path.slice(firstSlash + 1);
+      clean = `https://${bucket}.s3.amazonaws.com/${key}`;
+    }
+  }
+
+  // Convert relative S3 key paths starting with temp/ to full S3 URL
+  if (clean.startsWith('temp/')) {
+    clean = `https://navish-arc-assets-2026.s3.us-east-1.amazonaws.com/${clean}`;
+  }
 
   // Handle nested / double-encoded http(s) URLs (e.g. https://s3.../https%3A//s3.../file.glb)
   const encodedHttpIndex = clean.search(/https?%3A%2F%2F/i);
@@ -94,7 +129,7 @@ export async function getAuthorizedModelUrl(
     return sanitized;
   }
 
-  if (!databaseModelId || typeof databaseModelId !== 'string' || databaseModelId.trim() === '') {
+  if (!databaseModelId || !isValidDatabaseId(databaseModelId)) {
     return resolveServerUrl(sanitized);
   }
 

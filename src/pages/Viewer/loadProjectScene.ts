@@ -4,7 +4,7 @@ import type { ObjectPanelEntry } from '@components/editor/ObjectPanel/ObjectPane
 import type { Project } from '@app-types/project.types';
 import type { LoadedModelMetadata, ModelLoadProgress } from '@app-types/viewer.types';
 import { autoCategorizeModel } from '@engine/babylon/autoCategorizeModel';
-import { getAuthorizedModelUrl, resolveServerUrl } from '@utils/resolveServerUrl';
+import { getAuthorizedModelUrl, isValidDatabaseId, resolveServerUrl } from '@utils/resolveServerUrl';
 
 import type { Vector3 } from '@babylonjs/core';
 
@@ -65,10 +65,8 @@ export async function loadProjectScene(
       };
     }
 
-    const databaseModelId =
-      project?.modelId ||
-      project?.model_id ||
-      (project?.id && !project.id.startsWith('port_') ? project.id : undefined);
+    const rawDatabaseId = project?.modelId || project?.model_id || project?.id;
+    const databaseModelId = isValidDatabaseId(rawDatabaseId) ? rawDatabaseId : undefined;
     const resolvedUrl = (await getAuthorizedModelUrl(rawUrl, databaseModelId)) || resolveServerUrl(rawUrl);
     if (!resolvedUrl || resolvedUrl.includes('example.com') || resolvedUrl.startsWith('blob:')) {
       return {
