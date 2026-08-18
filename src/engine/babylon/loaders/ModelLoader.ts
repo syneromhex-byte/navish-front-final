@@ -25,7 +25,7 @@ import type {
   ModelLoadProgress,
   ModelSourceFormat,
 } from '@app-types/viewer.types';
-import { resolveServerUrl } from '@utils/resolveServerUrl';
+import { resolveServerUrl, sanitizeModelUrl } from '@utils/resolveServerUrl';
 
 export class ModelLoadError extends Error {}
 
@@ -109,7 +109,7 @@ export class ModelLoader {
     onProgress?: (progress: ModelLoadProgress) => void,
   ): Promise<LoadedModelMetadata> {
     const rawUrl = url || '';
-    const safeUrl = resolveServerUrl(rawUrl) || rawUrl;
+    const safeUrl = sanitizeModelUrl(resolveServerUrl(rawUrl) || rawUrl) || rawUrl;
     const isBlob = safeUrl.startsWith('blob:');
     
     let rootUrl = '';

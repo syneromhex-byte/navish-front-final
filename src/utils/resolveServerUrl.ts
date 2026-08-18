@@ -28,19 +28,45 @@ export function getApiOrigin(): string {
   }
 }
 
+export function sanitizeModelUrl(url: string | undefined): string | undefined {
+  if (!url || typeof url !== 'string') return url;
+
+  let clean = url.trim();
+
+  // Handle nested / double-encoded http(s) URLs (e.g. https://s3.../https%3A//s3.../file.glb)
+  const encodedHttpIndex = clean.search(/https?%3A%2F%2F/i);
+  if (encodedHttpIndex > 0) {
+    const encodedSegment = clean.slice(encodedHttpIndex);
+    try {
+      clean = decodeURIComponent(encodedSegment);
+    } catch {
+      // Fallback if decoding fails
+    }
+  } else {
+    // Handle unencoded nested http/https (e.g., https://domain/https://domain/file.glb)
+    const nestedHttpIndex = clean.indexOf('http', 8);
+    if (nestedHttpIndex > 0) {
+      clean = clean.slice(nestedHttpIndex);
+    }
+  }
+
+  return clean;
+}
+
 export function resolveServerUrl(url: string | undefined): string | undefined {
   if (!url) return url;
+  const cleanUrl = sanitizeModelUrl(url) || url;
 
   if (
-    url.startsWith('http://') ||
-    url.startsWith('https://') ||
-    url.startsWith('blob:') ||
-    url.startsWith('data:')
+    cleanUrl.startsWith('http://') ||
+    cleanUrl.startsWith('https://') ||
+    cleanUrl.startsWith('blob:') ||
+    cleanUrl.startsWith('data:')
   ) {
-    return url;
+    return cleanUrl;
   }
   const origin = getApiOrigin();
-  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+  return `${origin}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
 }
 
 /**
@@ -51,24 +77,25 @@ export async function getAuthorizedModelUrl(
   rawUrl: string | undefined,
   databaseModelId?: string,
 ): Promise<string | undefined> {
-  if (!rawUrl) return rawUrl;
+  const sanitized = sanitizeModelUrl(rawUrl);
+  if (!sanitized) return sanitized;
 
   // Blob URLs or Data URIs don't need S3 presigned tokens
-  if (rawUrl.startsWith('blob:') || rawUrl.startsWith('data:')) {
-    return rawUrl;
+  if (sanitized.startsWith('blob:') || sanitized.startsWith('data:')) {
+    return sanitized;
   }
 
   // If URL already contains S3 presigned query parameters, return directly
   if (
-    rawUrl.includes('X-Amz-Algorithm') ||
-    rawUrl.includes('X-Amz-Signature') ||
-    rawUrl.includes('Signature=')
+    sanitized.includes('X-Amz-Algorithm') ||
+    sanitized.includes('X-Amz-Signature') ||
+    sanitized.includes('Signature=')
   ) {
-    return rawUrl;
+    return sanitized;
   }
 
   if (!databaseModelId || typeof databaseModelId !== 'string' || databaseModelId.trim() === '') {
-    return resolveServerUrl(rawUrl);
+    return resolveServerUrl(sanitized);
   }
 
   const modelIdKey = databaseModelId.trim();
@@ -76,7 +103,7 @@ export async function getAuthorizedModelUrl(
   // Return cached presigned URL if available and valid
   const cached = urlCache.get(modelIdKey);
   if (cached && Date.now() < cached.expiresAt) {
-    return cached.url;
+    return sanitizeModelUrl(cached.url);
   }
 
   try {
@@ -84,12 +111,13 @@ export async function getAuthorizedModelUrl(
     if (!presignedUrl) {
       throw new Error(`API responded, but presignedUrl was missing or empty for databaseModelId: ${databaseModelId}`);
     }
+    const cleanPresigned = sanitizeModelUrl(presignedUrl) || presignedUrl;
     // Store in cache
-    urlCache.set(modelIdKey, { url: presignedUrl, expiresAt: Date.now() + CACHE_TTL_MS });
-    return presignedUrl;
+    urlCache.set(modelIdKey, { url: cleanPresigned, expiresAt: Date.now() + CACHE_TTL_MS });
+    return cleanPresigned;
   } catch (err) {
     console.error('❌ Failed to fetch presigned URL for databaseModelId:', databaseModelId, err);
-    return resolveServerUrl(rawUrl);
+    return resolveServerUrl(sanitized);
   }
 }
 
