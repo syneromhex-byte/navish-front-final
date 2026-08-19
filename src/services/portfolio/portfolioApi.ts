@@ -30,7 +30,8 @@ export async function getPublicPortfolio(category?: string): Promise<PortfolioIt
 
 export async function getPublicPortfolioItem(id: string): Promise<PortfolioItem> {
   const timestamp = Date.now();
-  const url = `${BASE_URL}/portfolio/${id}?_t=${timestamp}`;
+  const baseUrl = `${BASE_URL}/portfolio/${id}`;
+  const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}_t=${timestamp}`;
 
   // Do NOT pass Bearer Token here; it's a public request
   const response = await fetch(url, {
