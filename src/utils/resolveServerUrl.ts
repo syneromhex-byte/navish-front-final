@@ -68,18 +68,23 @@ export function sanitizeModelUrl(url: string | undefined): string | undefined {
     }
   }
 
-  // Convert s3://bucket/key to https://bucket.s3.amazonaws.com/key
+  // Convert s3://bucket/key to https://bucket.s3.us-east-1.amazonaws.com/key
   if (clean.startsWith('s3://')) {
     const s3Path = clean.slice(5);
     const firstSlash = s3Path.indexOf('/');
     if (firstSlash !== -1) {
       const bucket = s3Path.slice(0, firstSlash);
-      const key = s3Path.slice(firstSlash + 1);
-      clean = `https://${bucket}.s3.amazonaws.com/${key}`;
+      const key = s3Path.slice(firstSlash + 1).replace(/^\/+/, '');
+      clean = `https://${bucket}.s3.us-east-1.amazonaws.com/${key}`;
     }
   }
 
-  // Convert relative S3 key paths starting with temp/ to full S3 URL
+  // Normalize leading slash for relative S3 key paths (e.g. /temp/ -> temp/)
+  if (clean.startsWith('/temp/')) {
+    clean = clean.slice(1);
+  }
+
+  // Convert relative S3 key paths starting with temp/ to full us-east-1 S3 URL
   if (clean.startsWith('temp/')) {
     clean = `https://navish-arc-assets-2026.s3.us-east-1.amazonaws.com/${clean}`;
   }
