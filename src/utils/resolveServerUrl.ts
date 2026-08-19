@@ -101,6 +101,14 @@ export function sanitizeModelUrl(url: string | undefined): string | undefined {
     }
   }
 
+  // Handle double-queried strings (multiple '?' separators in a single URL)
+  if (clean.includes('?') && clean.indexOf('?') !== clean.lastIndexOf('?')) {
+    const firstQueryIndex = clean.indexOf('?');
+    const baseUrl = clean.slice(0, firstQueryIndex);
+    const queryPart = clean.slice(firstQueryIndex + 1).replace(/\?/g, '&');
+    clean = `${baseUrl}?${queryPart}`;
+  }
+
   return clean;
 }
 
