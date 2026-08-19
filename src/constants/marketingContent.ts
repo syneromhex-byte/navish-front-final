@@ -1,41 +1,41 @@
 import type { ProjectSummary, ServiceSummary, Testimonial } from '@app-types/content.types';
-import { ROUTES } from '@constants/routes';
+import { ROUTES, DEMO_PROJECT_ID } from '@constants/routes';
 
 /** Fixed room-type categories shown as filter pills on Portfolio/Projects — always shown even if a category has no case study yet. */
 export const SHOWCASE_CATEGORIES = ['Kitchen', 'Living Room', 'Bedroom', 'Bathroom', 'Outdoor'];
 
 export const FEATURED_PROJECTS: ProjectSummary[] = [
   {
-    id: 'meridian-residence',
-    title: 'Meridian Residence',
+    id: DEMO_PROJECT_ID,
+    title: 'Demo Luxury Apartment',
     category: 'Living Room',
     location: 'Aspen, Colorado',
     imageUrl: '',
-    href: ROUTES.viewer('meridian-residence'),
+    href: ROUTES.viewer(DEMO_PROJECT_ID),
   },
   {
-    id: 'obsidian-loft',
+    id: DEMO_PROJECT_ID,
     title: 'Obsidian Loft',
     category: 'Kitchen',
     location: 'New York, NY',
     imageUrl: '',
-    href: ROUTES.viewer('obsidian-loft'),
+    href: ROUTES.viewer(DEMO_PROJECT_ID),
   },
   {
-    id: 'harbor-pavilion',
+    id: DEMO_PROJECT_ID,
     title: 'Harbor Pavilion',
     category: 'Outdoor',
     location: 'Seattle, Washington',
     imageUrl: '',
-    href: ROUTES.viewer('harbor-pavilion'),
+    href: ROUTES.viewer(DEMO_PROJECT_ID),
   },
   {
-    id: 'linden-house',
+    id: DEMO_PROJECT_ID,
     title: 'Linden House',
     category: 'Bathroom',
     location: 'Austin, Texas',
     imageUrl: '',
-    href: ROUTES.viewer('linden-house'),
+    href: ROUTES.viewer(DEMO_PROJECT_ID),
   },
 ];
 

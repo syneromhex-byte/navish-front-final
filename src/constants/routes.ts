@@ -1,3 +1,5 @@
+export const DEMO_PROJECT_ID = '836c653b-82ac-4ace-92db-a413e2e9fb96';
+
 export const ROUTES = {
   home: '/',
   portfolio: '/portfolio',
@@ -23,3 +25,4 @@ export const ROUTES = {
   viewerVr: (projectId: string) => `/viewer/${projectId}/vr`,
   share: (shareToken: string) => `/share/${shareToken}`,
 } as const;
+

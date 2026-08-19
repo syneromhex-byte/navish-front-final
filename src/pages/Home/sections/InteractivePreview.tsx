@@ -3,7 +3,7 @@ import { useGSAP } from '@gsap/react';
 import { Link } from 'react-router-dom';
 import { gsap } from '@utils/gsap';
 import { buttonClasses } from '@components/common';
-import { ROUTES } from '@constants/routes';
+import { ROUTES, DEMO_PROJECT_ID } from '@constants/routes';
 
 export function InteractivePreview() {
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export function InteractivePreview() {
           </div>
 
           <Link
-            to={ROUTES.viewer('meridian-residence')}
+            to={ROUTES.viewer(DEMO_PROJECT_ID)}
             className={buttonClasses('primary', 'md', 'absolute bottom-6')}
           >
             Launch Full Viewer
