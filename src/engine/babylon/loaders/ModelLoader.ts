@@ -108,7 +108,21 @@ export class ModelLoader {
     url: string,
     onProgress?: (progress: ModelLoadProgress) => void,
   ): Promise<LoadedModelMetadata> {
-    const rawUrl = url || '';
+    let rawUrl = url || '';
+    if (
+      rawUrl.includes('%3A%2F%2F') ||
+      rawUrl.includes('%3a%2f%2f') ||
+      rawUrl.startsWith('http%3A') ||
+      rawUrl.startsWith('https%3A') ||
+      rawUrl.startsWith('http%3a') ||
+      rawUrl.startsWith('https%3a')
+    ) {
+      try {
+        rawUrl = decodeURIComponent(rawUrl);
+      } catch {
+        // Fallback if decoding fails
+      }
+    }
     const safeUrl = sanitizeModelUrl(resolveServerUrl(rawUrl) || rawUrl) || rawUrl;
     const isBlob = safeUrl.startsWith('blob:');
     

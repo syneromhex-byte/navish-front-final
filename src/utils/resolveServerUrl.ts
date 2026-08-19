@@ -52,6 +52,22 @@ export function sanitizeModelUrl(url: string | undefined): string | undefined {
 
   let clean = url.trim();
 
+  // If the entire URL or scheme is double-encoded (e.g., https%3A%2F%2F), decode it back
+  if (
+    clean.startsWith('http%3A') ||
+    clean.startsWith('https%3A') ||
+    clean.startsWith('http%3a') ||
+    clean.startsWith('https%3a') ||
+    clean.includes('%3A%2F%2F') ||
+    clean.includes('%3a%2f%2f')
+  ) {
+    try {
+      clean = decodeURIComponent(clean);
+    } catch {
+      // Fallback if decoding fails
+    }
+  }
+
   // Convert s3://bucket/key to https://bucket.s3.amazonaws.com/key
   if (clean.startsWith('s3://')) {
     const s3Path = clean.slice(5);
@@ -70,7 +86,7 @@ export function sanitizeModelUrl(url: string | undefined): string | undefined {
 
   // Handle nested / double-encoded http(s) URLs (e.g. https://s3.../https%3A//s3.../file.glb)
   const encodedHttpIndex = clean.search(/https?%3A%2F%2F/i);
-  if (encodedHttpIndex > 0) {
+  if (encodedHttpIndex >= 0) {
     const encodedSegment = clean.slice(encodedHttpIndex);
     try {
       clean = decodeURIComponent(encodedSegment);
