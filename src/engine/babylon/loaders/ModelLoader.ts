@@ -1,0 +1,272 @@
+import { FilesInputStore, Tags, TransformNode } from '@babylonjs/core';
+import type {
+  AbstractMesh,
+  ISceneLoaderProgressEvent,
+  Node,
+  Scene,
+} from '@babylonjs/core';
+// Registers glTF/GLB + OBJ SceneLoader plugins. Draco-compressed geometry and
+// KTX2/Basis-compressed textures inside a glTF are decoded automatically by
+// these plugins — no extra wiring needed. Both decoders lazy-load their
+// WASM/JS transcoders from Babylon's CDN (DracoCompression.Configuration /
+// KhronosTextureContainer2.URLConfig) on first use; override those statics
+// to self-host if an offline/air-gapped deployment ever needs it.
+import '@babylonjs/loaders/glTF';
+import '@babylonjs/loaders/OBJ';
+import { SceneLoader } from '@babylonjs/core/Loading/sceneLoader';
+import { Tools } from '@babylonjs/core/Misc/tools';
+
+// Safeguard: Ensure Babylon's URL preprocessing does not append query parameters or headers to S3 presigned URLs
+Tools.PreprocessUrl = (url: string) => {
+  return url;
+};
+import type {
+  LoadedModelMetadata,
+  ModelLoadProgress,
+  ModelSourceFormat,
+} from '@app-types/viewer.types';
+import { resolveServerUrl, sanitizeModelUrl } from '@utils/resolveServerUrl';
+
+export class ModelLoadError extends Error {}
+
+const EXTENSION_FORMAT: Record<string, ModelSourceFormat> = {
+  glb: 'glb',
+  gltf: 'gltf',
+  fbx: 'fbx',
+  obj: 'obj',
+};
+
+function detectFormat(fileName = ''): ModelSourceFormat {
+  const cleanName = (fileName || '').split('?')[0]?.split('#')[0] || '';
+  const extension = cleanName.includes('.') ? (cleanName.split('.').pop()?.toLowerCase() ?? '') : '';
+  const format = EXTENSION_FORMAT[extension];
+  if (!format) {
+    // Default to 'glb' if extension is unrecognized or missing (e.g. Blob URLs)
+    return 'glb';
+  }
+  return format;
+}
+
+export class ModelLoader {
+  private scene: Scene;
+  private loadedRoots = new Map<string, TransformNode>();
+
+  constructor(scene: Scene) {
+    this.scene = scene;
+  }
+
+  /**
+   * `.glb` is self-contained (geometry + textures embedded in one binary) and
+   * loads from a single File with no extra work. `.gltf` is plain JSON that
+   * references its geometry buffer and textures as separate sibling files by
+   * relative path — Babylon can only resolve those from a local pick via its
+   * FilesInputStore (a filename → File lookup it checks before falling back
+   * to a network fetch), so every file from the same picker selection must be
+   * registered there first, or those references silently fail and the model
+   * loads with missing textures/geometry.
+   */
+  async loadFromFile(
+    file: File,
+    onProgress?: (progress: ModelLoadProgress) => void,
+    siblingFiles: File[] = [],
+  ): Promise<LoadedModelMetadata> {
+    const format = detectFormat(file.name);
+    this.assertBrowserLoadable(format);
+
+    // Clear out stale files from the static store to prevent name collision caching bugs
+    FilesInputStore.FilesToLoad = {};
+
+    siblingFiles.forEach((sibling) => {
+      const name = sibling.name;
+      const lower = name.toLowerCase();
+      const baseName = name.split('/').pop()?.split('\\').pop() || name;
+      const baseLower = baseName.toLowerCase();
+
+      FilesInputStore.FilesToLoad[name] = sibling;
+      FilesInputStore.FilesToLoad[lower] = sibling;
+      FilesInputStore.FilesToLoad[baseName] = sibling;
+      FilesInputStore.FilesToLoad[baseLower] = sibling;
+      FilesInputStore.FilesToLoad[`./${baseName}`] = sibling;
+      FilesInputStore.FilesToLoad[`./${baseLower}`] = sibling;
+      FilesInputStore.FilesToLoad[`textures/${baseName}`] = sibling;
+      FilesInputStore.FilesToLoad[`textures/${baseLower}`] = sibling;
+    });
+
+    // An empty rootUrl makes the loader resolve sibling references (a
+    // .gltf's .bin/textures) as plain relative paths, which the browser
+    // then fetches over HTTP against the current page URL instead of
+    // checking FilesInputStore — the "file:" scheme is what routes that
+    // resolution through the local-file lookup instead.
+    const result = await SceneLoader.ImportMeshAsync(null, 'file:', file, this.scene, (event) =>
+      this.reportProgress(event, onProgress),
+    );
+
+    return this.finalizeImport(file.name, format, result.meshes, result.transformNodes);
+  }
+
+  async loadFromUrl(
+    url: string,
+    onProgress?: (progress: ModelLoadProgress) => void,
+  ): Promise<LoadedModelMetadata> {
+    let rawUrl = url || '';
+    if (
+      rawUrl.includes('%3A%2F%2F') ||
+      rawUrl.includes('%3a%2f%2f') ||
+      rawUrl.startsWith('http%3A') ||
+      rawUrl.startsWith('https%3A') ||
+      rawUrl.startsWith('http%3a') ||
+      rawUrl.startsWith('https%3a')
+    ) {
+      try {
+        rawUrl = decodeURIComponent(rawUrl);
+      } catch {
+        // Fallback if decoding fails
+      }
+    }
+    const safeUrl = sanitizeModelUrl(resolveServerUrl(rawUrl) || rawUrl) || rawUrl;
+    const isBlob = safeUrl.startsWith('blob:');
+    
+    let rootUrl = '';
+    let sceneFilename = 'model.glb';
+    let fileName = 'model.glb';
+    let rawFileName = 'model.glb';
+
+    if (isBlob) {
+      rootUrl = safeUrl;
+      sceneFilename = '.glb';
+      fileName = 'model.glb';
+    } else {
+      const queryIndex = safeUrl.indexOf('?');
+      const queryString = queryIndex !== -1 ? safeUrl.slice(queryIndex) : '';
+      const cleanUrl = queryIndex !== -1 ? safeUrl.slice(0, queryIndex) : safeUrl;
+      
+      const lastSlash = cleanUrl.lastIndexOf('/');
+      if (lastSlash !== -1) {
+        rootUrl = cleanUrl.slice(0, lastSlash + 1);
+        rawFileName = cleanUrl.slice(lastSlash + 1) || 'model.glb';
+      } else {
+        rootUrl = '';
+        rawFileName = cleanUrl || 'model.glb';
+      }
+      
+      fileName = rawFileName;
+      sceneFilename = rawFileName + queryString;
+    }
+
+    const format = isBlob ? 'glb' : detectFormat(fileName);
+    this.assertBrowserLoadable(format);
+
+    const pluginExt = '.' + format;
+
+    const result = await SceneLoader.ImportMeshAsync(
+      null,
+      rootUrl,
+      sceneFilename,
+      this.scene,
+      (event) => this.reportProgress(event, onProgress),
+      pluginExt,
+    );
+
+    return this.finalizeImport(fileName, format, result.meshes, result.transformNodes);
+  }
+
+  /**
+   * FBX has no native WebGL/browser parser in Babylon (or any major web 3D
+   * engine) — production pipelines (Sketchfab, Autodesk Viewer) convert FBX
+   * to glTF server-side before it ever reaches the client. We surface that
+   * clearly instead of failing silently or pretending to support it.
+   */
+  private assertBrowserLoadable(
+    format: ModelSourceFormat,
+  ): asserts format is 'glb' | 'gltf' | 'obj' {
+    if (format === 'fbx') {
+      throw new ModelLoadError(
+        'FBX files must be converted to glTF/GLB before they can be loaded in the browser viewer. Contact your pipeline admin about server-side conversion.',
+      );
+    }
+  }
+
+  private reportProgress(
+    event: ISceneLoaderProgressEvent,
+    onProgress?: (progress: ModelLoadProgress) => void,
+  ): void {
+    if (!onProgress) return;
+    if (event.lengthComputable && event.total > 0) {
+      onProgress({
+        loaded: event.loaded,
+        total: event.total,
+        percent: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+      });
+    } else if (event.loaded > 0) {
+      onProgress({
+        loaded: event.loaded,
+        total: event.loaded,
+        percent: 90,
+      });
+    }
+  }
+
+  private finalizeImport(
+    fileName: string,
+    format: ModelSourceFormat,
+    meshes: AbstractMesh[],
+    transformNodes: TransformNode[] = [],
+  ): LoadedModelMetadata {
+    const root = new TransformNode(`model_${fileName}_${Date.now()}`, this.scene);
+    Tags.AddTagsTo(root, 'navishModelRoot');
+
+    // A loaded asset's meshes are often nested several levels deep under an
+    // intermediate "__root__" TransformNode the loader creates to group
+    // multiple top-level glTF nodes — that node has no parent, but the real
+    // meshes inside it do, so filtering `meshes` alone for parentless items
+    // misses everything and the whole model silently registers as empty.
+    // Reparenting every parentless node (mesh or transform) from either list
+    // catches single-mesh assets, multi-root assets, and wrapped assets alike.
+    const topLevel: Node[] = [...meshes, ...transformNodes].filter((node) => !node.parent);
+    topLevel.forEach((node) => {
+      (node as AbstractMesh | TransformNode).setParent(root);
+    });
+
+    let boundingRadius = 0;
+    meshes.forEach((mesh) => {
+      mesh.refreshBoundingInfo({});
+      const radius = mesh.getBoundingInfo().boundingSphere.radiusWorld;
+      if (isFinite(radius) && radius > boundingRadius) boundingRadius = radius;
+    });
+
+    const materialCount = new Set(
+      meshes.map((mesh) => mesh.material?.uniqueId).filter((id): id is number => id !== undefined),
+    ).size;
+
+    this.loadedRoots.set(root.uniqueId.toString(), root);
+
+    return {
+      rootId: root.uniqueId.toString(),
+      fileName,
+      format,
+      meshCount: meshes.length,
+      materialCount,
+      boundingRadius,
+    };
+  }
+
+  getRoot(rootId: string): TransformNode | undefined {
+    return this.loadedRoots.get(rootId);
+  }
+
+  unload(rootId: string): void {
+    const root = this.loadedRoots.get(rootId);
+    if (!root) return;
+    root.getChildMeshes().forEach((mesh) => mesh.dispose(false, true));
+    root.dispose();
+    this.loadedRoots.delete(rootId);
+  }
+
+  unloadAll(): void {
+    Array.from(this.loadedRoots.keys()).forEach((rootId) => this.unload(rootId));
+  }
+
+  dispose(): void {
+    this.unloadAll();
+  }
+}
