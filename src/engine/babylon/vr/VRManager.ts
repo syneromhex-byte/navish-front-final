@@ -7,7 +7,6 @@ export class VRManager {
   private onStateChange: ((isInVR: boolean) => void) | null = null;
   private savedCameraPosition: Vector3 | null = null;
   private nonVRCamera: Camera | null = null;
-  private fallbackToLocal: boolean = false;
 
   constructor(scene: Scene) {
     this.scene = scene;
