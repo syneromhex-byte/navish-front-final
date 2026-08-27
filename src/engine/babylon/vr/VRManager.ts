@@ -99,15 +99,17 @@ export class VRManager {
       this.savedCameraPosition = this.scene.activeCamera.position.clone();
     }
     // Not every headset/browser supports the 'local-floor' reference space
-    // (desktop WebXR emulators do, but some real hardware only supports
-    // 'local'), so fall back rather than letting enterXRAsync throw silently.
+    // Use an array of fallback reference spaces and pre-populate optionalFeatures
+    // so Babylon natively attempts both without creating a new session.
     try {
-      await this.xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local-floor');
+      await this.xrHelper.baseExperience.enterXRAsync(
+        'immersive-vr',
+        ['local-floor', 'local'] as any,
+        undefined,
+        { optionalFeatures: ['local-floor', 'local'] }
+      );
     } catch (e: any) {
-      if (e.name === 'NotSupportedError') {
-        throw new Error('Your headset does not support the required VR features (local-floor).');
-      }
-      throw e;
+      throw new Error('Your headset could not start the VR session. ' + (e.message || ''));
     }
   }
 
