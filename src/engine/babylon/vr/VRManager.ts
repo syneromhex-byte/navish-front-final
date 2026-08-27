@@ -35,9 +35,11 @@ export class VRManager {
     // Enable Fixed Foveated Rendering (FFR) for Quest & WebXR headsets
     try {
       this.xrHelper.baseExperience.featuresManager.enableFeature(
-        'xr-fixed-foveated-rendering' as any,
+        (WebXRFeatureName as any).FIXED_FOVEATED_RENDERING || 'xr-fixed-foveated-rendering',
         'latest',
         { foveation: 1.0 },
+        true,
+        false, // Mark as optional feature so requestSession does not fail with invalid required features
       );
     } catch {
       // Graceful fallback if FFR extension is not supported by headset/browser
@@ -66,6 +68,8 @@ export class VRManager {
           movementOrientationFollowsViewerPose: true,
           movementOrientationFollowsController: false,
         },
+        true,
+        false, // Mark as optional feature so requestSession does not fail with invalid required features
       );
     } catch {
       // Continuous thumbstick movement not supported by this headset/browser — teleportation still works.
@@ -99,20 +103,11 @@ export class VRManager {
       this.nonVRCamera = this.scene.activeCamera;
       this.savedCameraPosition = this.scene.activeCamera.position.clone();
     }
-    // If fallback is active, use 'local', otherwise try 'local-floor'
-    const refSpace = this.fallbackToLocal ? 'local' : 'local-floor';
 
     try {
-      await this.xrHelper.baseExperience.enterXRAsync(
-        'immersive-vr',
-        refSpace
-      );
-    } catch (e: any) {
-      if (e.name === 'NotSupportedError' && !this.fallbackToLocal) {
-        this.fallbackToLocal = true;
-        throw new Error('Please click "Enter VR" again to use compatibility mode.');
-      }
-      throw new Error('Your headset could not start the VR session. ' + (e.message || ''));
+      await this.xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local-floor');
+    } catch {
+      await this.xrHelper.baseExperience.enterXRAsync('immersive-vr', 'local');
     }
   }
 
