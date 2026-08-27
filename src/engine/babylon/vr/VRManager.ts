@@ -7,6 +7,7 @@ export class VRManager {
   private onStateChange: ((isInVR: boolean) => void) | null = null;
   private savedCameraPosition: Vector3 | null = null;
   private nonVRCamera: Camera | null = null;
+  private fallbackToLocal: boolean = false;
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -98,17 +99,19 @@ export class VRManager {
       this.nonVRCamera = this.scene.activeCamera;
       this.savedCameraPosition = this.scene.activeCamera.position.clone();
     }
-    // Not every headset/browser supports the 'local-floor' reference space
-    // Use an array of fallback reference spaces and pre-populate optionalFeatures
-    // so Babylon natively attempts both without creating a new session.
+    // If fallback is active, use 'local', otherwise try 'local-floor'
+    const refSpace = this.fallbackToLocal ? 'local' : 'local-floor';
+
     try {
       await this.xrHelper.baseExperience.enterXRAsync(
         'immersive-vr',
-        ['local-floor', 'local'] as any,
-        undefined,
-        { optionalFeatures: ['local-floor', 'local'] }
+        refSpace
       );
     } catch (e: any) {
+      if (e.name === 'NotSupportedError' && !this.fallbackToLocal) {
+        this.fallbackToLocal = true;
+        throw new Error('Please click "Enter VR" again to use compatibility mode.');
+      }
       throw new Error('Your headset could not start the VR session. ' + (e.message || ''));
     }
   }
